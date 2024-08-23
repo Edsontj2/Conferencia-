@@ -16,7 +16,7 @@ function renderizarProdutos() {
         item.innerHTML = `
             <span class="codigo">${produto.codigo}</span>
             <span class="descricao">${produto.descricao}</span>
-            <button class="scan-btn" onclick="abrirCamera('${produto.codigo}')">Escanear</button>
+            <button id="scan-btn-${produto.codigo}" class="scan-btn" onclick="abrirCamera('${produto.codigo}')">Escanear</button>
         `;
         lista.appendChild(item);
     });
@@ -26,6 +26,7 @@ function renderizarProdutos() {
 function abrirCamera(codigoProduto) {
     const cameraContainer = document.getElementById('camera-container');
     const video = document.getElementById('camera-stream');
+    const scanButton = document.getElementById(`scan-btn-${codigoProduto}`);
 
     // Verifica se o navegador suporta a API de Media Devices
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -34,7 +35,18 @@ function abrirCamera(codigoProduto) {
                 video.srcObject = stream;
                 cameraContainer.style.display = 'block';
 
-                // Aqui você pode adicionar a lógica para ler o código de barras usando uma biblioteca
+                // Fecha a câmera automaticamente após 5 segundos
+                setTimeout(() => {
+                    stream.getTracks().forEach(track => track.stop()); // Para o stream de vídeo
+                    cameraContainer.style.display = 'none';
+
+                    // Troca o botão para um ícone de validado
+                    scanButton.innerHTML = '✅ ';
+                    scanButton.disabled = true; // Desativa o botão
+
+                    console.log(`Câmera fechada e produto ${codigoProduto} validado.`);
+                }, 2000); // 5000 ms = 5 segundos
+
                 console.log(`Câmera aberta para o produto com código: ${codigoProduto}`);
             })
             .catch(error => {
