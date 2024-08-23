@@ -30,28 +30,30 @@ function abrirCamera(codigoProduto) {
 
     // Verifica se o navegador suporta a API de Media Devices
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                video.srcObject = stream;
-                cameraContainer.style.display = 'block';
+        navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: { exact: "environment" } } // Solicita a câmera traseira
+        })
+        .then(stream => {
+            video.srcObject = stream;
+            cameraContainer.style.display = 'block';
 
-                // Fecha a câmera automaticamente após 5 segundos
-                setTimeout(() => {
-                    stream.getTracks().forEach(track => track.stop()); // Para o stream de vídeo
-                    cameraContainer.style.display = 'none';
+            // Fecha a câmera automaticamente após 5 segundos
+            setTimeout(() => {
+                stream.getTracks().forEach(track => track.stop()); // Para o stream de vídeo
+                cameraContainer.style.display = 'none';
 
-                    // Troca o botão para um ícone de validado
-                    scanButton.innerHTML = '✅ ';
-                    scanButton.disabled = true; // Desativa o botão
+                // Troca o botão para um ícone de validado
+                scanButton.innerHTML = '✅ Validado';
+                scanButton.disabled = true; // Desativa o botão
 
-                    console.log(`Câmera fechada e produto ${codigoProduto} validado.`);
-                }, 2000); // 5000 ms = 5 segundos
+                console.log(`Câmera fechada e produto ${codigoProduto} validado.`);
+            }, 5000); // 5000 ms = 5 segundos
 
-                console.log(`Câmera aberta para o produto com código: ${codigoProduto}`);
-            })
-            .catch(error => {
-                console.error("Erro ao acessar a câmera: ", error);
-            });
+            console.log(`Câmera aberta para o produto com código: ${codigoProduto}`);
+        })
+        .catch(error => {
+            console.error("Erro ao acessar a câmera: ", error);
+        });
     } else {
         alert("Câmera não suportada neste dispositivo/navegador.");
     }
