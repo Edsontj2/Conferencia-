@@ -15,10 +15,15 @@ async function main() {
       db.close();
     }
   } else if (cmd === 'create-admin') {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const user = (await rl.question(`Usuário [${cfg.adminUsername}]: `)).trim() || cfg.adminUsername;
-    const pw = await rl.question('Senha (mín. 8 caracteres): ');
-    rl.close();
+    let user = cfg.adminUsername;
+    let pw = cfg.adminPassword;
+    // --env: usa ADMIN_USERNAME/ADMIN_PASSWORD do ambiente (usado pelo script de instalação)
+    if (!process.argv.includes('--env')) {
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      user = (await rl.question(`Usuário [${cfg.adminUsername}]: `)).trim() || cfg.adminUsername;
+      pw = await rl.question('Senha (mín. 8 caracteres): ');
+      rl.close();
+    }
     const db = openDb(cfg.dbFile);
     upsertAdmin(db, user, pw);
     console.log(`Administrador "${user}" salvo. Sessões anteriores desse usuário foram encerradas.`);
