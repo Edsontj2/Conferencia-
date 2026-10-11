@@ -72,6 +72,19 @@ Todos os dispositivos que acessam o **mesmo servidor** veem os mesmos dados.
 
 ## 4. Hospedagem com HTTPS
 
+### Instalação automática (Linux + Tailscale)
+
+No servidor (Debian/Ubuntu ou Fedora/RHEL, com systemd):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Edsontj2/Conferencia-/claude/escalabus-scheduling-app-ccewkb/escalabus/deploy/instalar.sh -o instalar.sh
+sudo bash instalar.sh
+```
+
+O script instala o Node.js 22 se necessário, baixa o código em `/opt/escalabus`, compila, cria o administrador (pede a senha no terminal), registra o serviço `escalabus` no systemd e, se o Tailscale estiver ativo, publica com HTTPS em `https://<servidor>.<tailnet>.ts.net` via `tailscale serve`. Os dados ficam em `/var/lib/escalabus`. Rodar o script de novo atualiza para a versão mais recente sem apagar dados. No painel do Tailscale, ative **MagicDNS** e **HTTPS Certificates**.
+
+### Instalação manual
+
 Qualquer servidor Linux com Node 20+ (VPS, máquina na empresa). Exemplo com **Caddy** (certificado Let's Encrypt automático):
 
 ```caddyfile
