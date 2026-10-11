@@ -55,8 +55,8 @@ chmod 750 "$DATA"
 
 msg "Baixando o código ($BRANCH)"
 if [ -d "$SRC/.git" ]; then
-  git -C "$SRC" fetch -q origin "$BRANCH"
-  git -C "$SRC" checkout -q -B "$BRANCH" "origin/$BRANCH"
+  as_app git -C "$SRC" fetch -q origin "$BRANCH"
+  as_app git -C "$SRC" checkout -q -B "$BRANCH" "origin/$BRANCH"
 else
   git clone -q --branch "$BRANCH" "$REPO" "$SRC"
 fi
