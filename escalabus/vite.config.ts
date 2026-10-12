@@ -29,8 +29,9 @@ export default defineConfig({
         // Pré-carrega a "casca" do aplicativo; a API nunca é armazenada pelo service worker
         // (a cópia offline dos dados é feita pelo próprio app, por usuário/modo, e apagada ao sair).
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
+        globIgnores: ['manual/**'],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/manual\//],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
     }),

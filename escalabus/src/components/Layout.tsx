@@ -39,6 +39,7 @@ export function Layout() {
               <n.icon /><span>{n.label}</span>
             </NavLink>
           ))}
+          <a className="sb-link" href="/manual/index.html" target="_blank" rel="noopener"><Icon.report /><span>Manual</span></a>
         </nav>
         <div className="sb-footer">
           {me?.mode === 'demo' && <div className="sb-demo">Modo demonstração</div>}

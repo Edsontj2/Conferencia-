@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Manual do Usuário – EscalaBus</title>
+<link rel="icon" href="/logo.svg" type="image/svg+xml" />
+<style>
+  :root { --blue: #2563eb; --navy: #1e293b; --text: #0f172a; --muted: #475569; --line: #e2e8f0; --bg: #f4f6fb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; color: var(--text); background: var(--bg); line-height: 1.6; font-size: 16px; }
+  .cover { background: linear-gradient(135deg, #1e293b 0%, #1e3a8a 60%, #2563eb 100%); color: #fff; padding: 3.5rem 1.5rem 3rem; text-align: center; }
+  .cover img { width: 96px; height: 96px; }
+  .cover h1 { font-size: 2.4rem; margin: .8rem 0 .2rem; letter-spacing: -.02em; }
+  .cover h1 span { color: #93c5fd; }
+  .cover p { margin: .2rem 0; opacity: .9; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+  nav.toc { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 1.1rem 1.4rem; margin: -2rem auto 2rem; max-width: 980px; position: relative; box-shadow: 0 6px 20px rgba(15,23,42,.08); }
+  nav.toc h2 { margin: 0 0 .5rem; font-size: 1.1rem; }
+  nav.toc ol { margin: 0; padding-left: 1.3rem; columns: 2; column-gap: 2rem; }
+  nav.toc a { color: var(--blue); text-decoration: none; }
+  section.chapter { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 1.6rem 1.8rem; margin-bottom: 1.6rem; box-shadow: 0 1px 3px rgba(15,23,42,.05); }
+  h2.ch { font-size: 1.6rem; margin: 0 0 .3rem; letter-spacing: -.02em; display: flex; align-items: center; gap: .6rem; }
+  h2.ch .n { background: var(--blue); color: #fff; width: 2.1rem; height: 2.1rem; border-radius: 10px; display: inline-grid; place-items: center; font-size: 1.1rem; flex-shrink: 0; }
+  .lead { color: var(--muted); margin-top: 0; }
+  h3 { font-size: 1.15rem; margin: 1.8rem 0 .4rem; }
+  ol.steps { padding-left: 1.4rem; }
+  ol.steps li { margin-bottom: .35rem; }
+  figure { margin: 1rem 0 1.4rem; }
+  figure img { width: 100%; border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 6px 18px rgba(15,23,42,.10); display: block; }
+  figure.phone { display: inline-block; width: 31%; margin-right: 2%; vertical-align: top; }
+  figure.phone:last-of-type { margin-right: 0; }
+  figcaption { font-size: .88rem; color: var(--muted); margin-top: .45rem; text-align: center; }
+  .tip, .warn, .rule { border-radius: 12px; padding: .85rem 1.1rem; margin: 1rem 0; border: 1px solid; }
+  .tip { background: #eff6ff; border-color: #bfdbfe; }
+  .warn { background: #fffbeb; border-color: #fde68a; }
+  .rule { background: #f0fdf4; border-color: #bbf7d0; }
+  .tip b:first-child, .warn b:first-child, .rule b:first-child { display: block; margin-bottom: .2rem; }
+  kbd, .btn { display: inline-block; font: inherit; font-size: .88rem; font-weight: 600; padding: .05rem .5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; white-space: nowrap; }
+  .btn.blue { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .btn.green { background: #16a34a; color: #fff; border-color: #16a34a; }
+  .chip { display: inline-block; padding: 0 .45rem; border-radius: 5px; font-weight: 600; font-size: .9rem; }
+  .chip.b { background: #dbeafe; color: #1e40af; } .chip.a { background: #fef3c7; color: #92400e; }
+  table.t { border-collapse: collapse; width: 100%; margin: .8rem 0; font-size: .95rem; }
+  table.t th, table.t td { border: 1px solid var(--line); padding: .45rem .6rem; text-align: left; vertical-align: top; }
+  table.t th { background: #f8fafc; }
+  footer { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 2rem; }
+  .back { position: fixed; right: 1rem; bottom: 1rem; background: var(--navy); color: #fff; padding: .6rem 1rem; border-radius: 10px; text-decoration: none; font-weight: 600; box-shadow: 0 6px 18px rgba(0,0,0,.2); }
+  @media (max-width: 700px) {
+    nav.toc ol { columns: 1; }
+    section.chapter { padding: 1.1rem 1rem; }
+    figure.phone { width: 100%; margin-right: 0; }
+    .cover h1 { font-size: 1.8rem; }
+  }
+  @page { size: A4; margin: 14mm 12mm; }
+  @media print {
+    body { background: #fff; font-size: 11.5pt; }
+    .back { display: none; }
+    .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 6rem 1rem 5rem; break-after: page; }
+    nav.toc { box-shadow: none; margin: 0 0 1rem; break-after: page; }
+    section.chapter { box-shadow: none; border: 0; padding: 0; break-before: page; }
+    figure { break-inside: avoid; }
+    figure img { box-shadow: none; }
+    h3 { break-after: avoid; }
+    .tip, .warn, .rule, .btn, .chip, h2.ch .n { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<header class="cover">
+  <img src="/logo.svg" alt="EscalaBus" />
+  <h1>Escala<span>Bus</span></h1>
+  <p><strong>Manual do Usuário</strong></p>
+  <p>Escalas de motoristas e cobradores aos sábados e domingos</p>
+</header>
+
+<nav class="toc">
+  <h2>Sumário</h2>
+  <ol>
+    <li><a href="#acesso">Acesso ao sistema</a></li>
+    <li><a href="#regras">Regras da escala</a></li>
+    <li><a href="#dashboard">Dashboard e menu</a></li>
+    <li><a href="#gerar">Gerar a escala do fim de semana</a></li>
+    <li><a href="#editar">Editar a escala (direto na tabela)</a></li>
+    <li><a href="#confirmar">Salvar, confirmar e alterar escala confirmada</a></li>
+    <li><a href="#enviar">PDF, impressão e WhatsApp</a></li>
+    <li><a href="#historico">Histórico</a></li>
+    <li><a href="#cadastros">Cadastros: pessoas, linhas, ônibus e serviços</a></li>
+    <li><a href="#config">Configurações, usuários e backup</a></li>
+    <li><a href="#celular">Uso no celular e sem internet</a></li>
+    <li><a href="#duvidas">Dúvidas frequentes</a></li>
+  </ol>
+</nav>
+
+<main class="wrap">
+
+<section class="chapter" id="acesso">
+  <h2 class="ch"><span class="n">1</span> Acesso ao sistema</h2>
+  <p class="lead">O EscalaBus funciona no navegador do computador ou do celular, no endereço fornecido pela empresa (ex.: <b>conferencia-nu.vercel.app</b>).</p>
+  <ol class="steps">
+    <li>Abra o endereço do sistema.</li>
+    <li>Digite seu <b>Usuário</b> e sua <b>Senha</b> (criados pelo administrador).</li>
+    <li>Clique em <span class="btn blue">Entrar</span>.</li>
+  </ol>
+  <figure><img src="img/01-login.jpg" alt="Tela de login" /><figcaption>Tela de entrada do sistema.</figcaption></figure>
+  <div class="warn"><b>Primeiro acesso do administrador</b>O sistema vem com o usuário <kbd>admin</kbd> e senha <kbd>admin</kbd>. Enquanto essa senha não for trocada, aparece um aviso amarelo no topo. Troque em <b>Configurações → Minha senha</b> (capítulo 10).</div>
+</section>
+
+<section class="chapter" id="regras">
+  <h2 class="ch"><span class="n">2</span> Regras da escala</h2>
+  <p class="lead">O sistema aplica estas regras automaticamente — no sorteio, na edição e na confirmação. Não é possível salvar uma escala que as desrespeite.</p>
+  <div class="rule"><b>Sábado sim, sábado não — domingo sim, domingo não</b>Quem trabalha em um sábado <b>não</b> trabalha no domingo do mesmo fim de semana e <b>não</b> trabalha no sábado seguinte. Exemplo: trabalhou em <b>10/10</b> → não trabalha em <b>11/10</b> nem em <b>17/10</b>; pode trabalhar em <b>18/10</b>.</div>
+  <table class="t">
+    <tr><th>Regra</th><th>O que significa</th></tr>
+    <tr><td>Função</td><td>Motorista só ocupa vaga de motorista; cobrador só ocupa vaga de cobrador.</td></tr>
+    <tr><td>Somente ativos</td><td>Pessoas, linhas, ônibus e serviços inativos não entram no sorteio.</td></tr>
+    <tr><td>Sem sobreposição</td><td>A mesma pessoa (ou o mesmo ônibus) não pode estar em dois serviços no mesmo horário, inclusive nos que passam da meia-noite.</td></tr>
+    <tr><td>Regime do turno</td><td>Manhã: 05:00 às 18:00 · Tarde: 10:00 às 00:00 · Manhã e Tarde: 05:00 às 00:00. Se faltar gente, o sistema completa a vaga com alguém fora do turno (dobra) e mostra o aviso <i>“fora do turno”</i>.</td></tr>
+    <tr><td>Escala sempre completa</td><td>O sorteio preenche todas as vagas, preferindo quem tem menos participações e quem está no próprio turno.</td></tr>
+    <tr><td>Histórico</td><td>Só escalas <b>confirmadas</b> contam para a alternância. Rascunhos e canceladas não contam.</td></tr>
+  </table>
+  <div class="tip"><b>Cores das mensagens</b><span style="color:#b91c1c">Vermelho</span>: regra violada — não deixa salvar. <span style="color:#a16207">Amarelo</span>: pendência — salva como rascunho, mas não confirma. <span style="color:#1d4ed8">Azul</span>: aviso informativo (ex.: “fora do turno”, “carro não definido”).</div>
+</section>
+
+<section class="chapter" id="dashboard">
+  <h2 class="ch"><span class="n">3</span> Dashboard e menu</h2>
+  <p class="lead">Depois de entrar, o <b>Dashboard</b> mostra o próximo fim de semana, se a escala já existe e o total de cadastros.</p>
+  <figure><img src="img/02-dashboard.jpg" alt="Dashboard" /><figcaption>Dashboard: próximo fim de semana, atalhos e números dos cadastros.</figcaption></figure>
+  <p>O <b>menu lateral</b> (à esquerda) leva a todas as rotinas:</p>
+  <figure><img src="img/03-menu.jpg" alt="Menu lateral" /><figcaption>Menu: Dashboard, Escalas, Pessoas, Linhas, Ônibus, Serviços, Relatórios, Histórico e Configurações. Embaixo ficam seu usuário e o botão de sair.</figcaption></figure>
+</section>
+
+<section class="chapter" id="gerar">
+  <h2 class="ch"><span class="n">4</span> Gerar a escala do fim de semana</h2>
+  <h3>4.1 Escolher o fim de semana</h3>
+  <ol class="steps">
+    <li>Clique em <b>Escalas</b> no menu.</li>
+    <li>No quadro <b>Sábado e Domingo</b> (canto superior direito), use as setas <kbd>‹</kbd> <kbd>›</kbd> para ir ao fim de semana anterior ou seguinte, ou clique no quadro para escolher a data no calendário.</li>
+  </ol>
+  <figure><img src="img/04-escolher-fim-de-semana.jpg" alt="Escolher o fim de semana" /><figcaption>Escolha o fim de semana. O domingo é calculado automaticamente.</figcaption></figure>
+  <p>A escala é exibida em duas abas: <b>Sábado</b> e <b>Domingo</b>. O número ao lado mostra quantos serviços há em cada dia.</p>
+  <figure><img src="img/05-abas-sabado-domingo.jpg" alt="Abas Sábado e Domingo" /><figcaption>Abas do sábado e do domingo.</figcaption></figure>
+
+  <h3>4.2 Sortear</h3>
+  <ol class="steps">
+    <li>Clique em <span class="btn blue">Gerar Escala Aleatória</span>.</li>
+    <li>O sistema monta uma <b>proposta</b> com todos os serviços cadastrados para sábado e domingo, preenchendo motorista e cobrador de cada vaga conforme as regras.</li>
+    <li>Confira a proposta. <b>Nada é salvo</b> até você clicar em <span class="btn blue">Salvar escala</span>.</li>
+  </ol>
+  <figure><img src="img/06-gerar-escala.jpg" alt="Botão gerar escala" /><figcaption>Botão “Gerar Escala Aleatória”.</figcaption></figure>
+  <figure><img src="img/07-proposta-sorteio.jpg" alt="Proposta de sorteio" /><figcaption>Proposta pronta: todas as vagas preenchidas. A barra escura embaixo indica que ainda não foi salvo.</figcaption></figure>
+  <p>Clique em <b>Avisos</b> para ver os detalhes — por exemplo, quem foi escalado fora do próprio turno (dobra) ou serviços sem carro definido.</p>
+  <figure><img src="img/08-avisos.jpg" alt="Avisos" /><figcaption>Lista de avisos (informativos — não impedem salvar).</figcaption></figure>
+  <div class="tip"><b>Não gostou do sorteio?</b>Clique de novo em <span class="btn blue">Gerar Escala Aleatória</span> para uma nova proposta, ou ajuste manualmente na tabela (capítulo 5).</div>
+</section>
+
+<section class="chapter" id="editar">
+  <h2 class="ch"><span class="n">5</span> Editar a escala (direto na tabela)</h2>
+  <p class="lead">A tabela funciona como uma planilha: clique na célula e altere. As regras são conferidas na hora.</p>
+  <table class="t">
+    <tr><th>Coluna</th><th>Como alterar</th></tr>
+    <tr><td>Linha</td><td>Escolha a linha na lista.</td></tr>
+    <tr><td>Ônibus</td><td>Escolha o carro (ou “a definir”).</td></tr>
+    <tr><td>Horário</td><td>Digite a hora de início e de término (rendição). Término menor que o início = termina no dia seguinte.</td></tr>
+    <tr><td>Turno</td><td>Digite ou escolha (Manhã, Tarde…).</td></tr>
+    <tr><td>Motorista <span class="chip b">azul</span></td><td>Escolha na lista. Quem não pode trabalhar aparece desabilitado com o motivo (ex.: “trabalhou no sábado anterior”).</td></tr>
+    <tr><td>Cobrador <span class="chip a">amarelo</span></td><td>Igual ao motorista.</td></tr>
+    <tr><td>Ações</td><td><kbd>Sáb/Dom</kbd> muda o dia do serviço · <kbd>⇄</kbd> troca com outra vaga · <kbd>🗑</kbd> remove o serviço.</td></tr>
+  </table>
+  <figure><img src="img/09-editar-celula.jpg" alt="Editar célula" /><figcaption>Clique na etiqueta do motorista ou do cobrador para trocar a pessoa.</figcaption></figure>
+  <p>Assim que algo muda, aparece a barra <b>“Alterações não salvas”</b>. Ela informa se está tudo certo ou se há regras violadas.</p>
+  <figure><img src="img/10-barra-salvar.jpg" alt="Barra salvar" /><figcaption>Barra para <b>Salvar</b> ou <b>Descartar</b> as alterações.</figcaption></figure>
+
+  <h3>5.1 Trocar duas vagas</h3>
+  <ol class="steps">
+    <li>Na linha desejada, clique no ícone <kbd>⇄</kbd> (Trocar).</li>
+    <li>Escolha <b>o que trocar</b> (motoristas, cobradores, linhas ou ônibus) e <b>com qual vaga</b>.</li>
+    <li>O sistema mostra se a troca é válida. Clique em <span class="btn blue">Trocar</span>. As duas vagas mudam juntas.</li>
+  </ol>
+  <figure><img src="img/11-trocar-vagas.jpg" alt="Trocar vagas" /><figcaption>Troca entre duas vagas, validada antes de aplicar.</figcaption></figure>
+
+  <h3>5.2 Adicionar ou remover serviço</h3>
+  <p>No fim da tabela clique em <b>+ Adicionar serviço</b> para incluir uma linha nova no dia aberto. Para remover, use o ícone <kbd>🗑</kbd> da linha.</p>
+  <figure><img src="img/12-adicionar-servico.jpg" alt="Adicionar serviço" /><figcaption>“Adicionar serviço” no fim da tabela.</figcaption></figure>
+  <div class="tip"><b>Limpar Escala</b>O botão <span class="btn">Limpar Escala</span> apaga todos os motoristas e cobradores da escala aberta, mantendo linhas, ônibus e horários. Útil para montar à mão.</div>
+</section>
+
+<section class="chapter" id="confirmar">
+  <h2 class="ch"><span class="n">6</span> Salvar, confirmar e alterar escala confirmada</h2>
+  <h3>6.1 Salvar (rascunho)</h3>
+  <p>Clique em <span class="btn blue">Salvar escala</span> na barra escura. A escala fica como <b>Rascunho</b>: pode ser alterada à vontade e ainda <b>não conta</b> para a alternância dos próximos fins de semana.</p>
+  <h3>6.2 Confirmar</h3>
+  <ol class="steps">
+    <li>Com o rascunho salvo e sem pendências, clique em <span class="btn green">✔ Confirmar escala</span>.</li>
+    <li>Confirme a mensagem. O sistema revalida todas as regras e grava.</li>
+  </ol>
+  <figure><img src="img/13-confirmar.jpg" alt="Confirmar escala" /><figcaption>Botão “Confirmar escala” (fica bloqueado enquanto houver pendências).</figcaption></figure>
+  <div class="warn"><b>Importante</b>Somente escalas <b>confirmadas</b> valem para a regra “sábado sim, sábado não”. Confirme sempre a escala do fim de semana trabalhado.</div>
+
+  <h3>6.3 Alterar uma escala já confirmada</h3>
+  <ol class="steps">
+    <li>Clique em <b>Editar escala confirmada</b> — as células ficam editáveis.</li>
+    <li>Faça as alterações e clique em <span class="btn blue">Salvar alterações</span>.</li>
+    <li>Informe o <b>motivo</b> da alteração. Ele fica guardado no registro.</li>
+  </ol>
+  <figure><img src="img/14-editar-confirmada.jpg" alt="Editar confirmada" /><figcaption>Ação explícita para editar uma escala confirmada.</figcaption></figure>
+  <figure><img src="img/15-motivo-alteracao.jpg" alt="Motivo da alteração" /><figcaption>Toda alteração em escala confirmada exige um motivo.</figcaption></figure>
+  <h3>6.4 Registro de alterações</h3>
+  <p>Clique em <b>Registro de alterações</b> para ver quem alterou, quando, o motivo e o que mudou.</p>
+  <figure><img src="img/16-registro-alteracoes.jpg" alt="Registro de alterações" /><figcaption>Histórico de alterações da escala.</figcaption></figure>
+  <h3>6.5 Cancelar uma escala</h3>
+  <p>O botão <b>Cancelar escala</b> pede um motivo. A escala cancelada fica no histórico, mas não conta para as regras e libera o fim de semana para uma nova escala.</p>
+</section>
+
+<section class="chapter" id="enviar">
+  <h2 class="ch"><span class="n">7</span> PDF, impressão e WhatsApp</h2>
+  <h3>7.1 Exportar PDF (tela de Escalas)</h3>
+  <p>Clique em <span class="btn">Exportar PDF</span> para baixar a escala do fim de semana em A4, separada por turno.</p>
+  <h3>7.2 Enviar pelo WhatsApp</h3>
+  <ol class="steps">
+    <li>Clique em <span class="btn green">Enviar no WhatsApp</span>.</li>
+    <li>Escolha o <b>destinatário</b> (cadastrado em Configurações) ou “Outro número”.</li>
+    <li>Escolha o <b>período</b>: fim de semana completo, só sábado ou só domingo. Se a mensagem ficar grande, envie por <b>turno</b>.</li>
+    <li>Confira a pré-visualização e clique em <span class="btn green">Abrir no WhatsApp</span>. O WhatsApp abre com a mensagem pronta — você confirma o envio lá.</li>
+  </ol>
+  <figure><img src="img/17-whatsapp.jpg" alt="WhatsApp" /><figcaption>Envio pelo WhatsApp com pré-visualização da mensagem.</figcaption></figure>
+  <div class="tip"><b>PDF no WhatsApp</b>O link do WhatsApp envia apenas texto. Para mandar o PDF, use <b>Baixar PDF</b> e anexe, ou <b>Compartilhar PDF</b> no celular.</div>
+  <h3>7.3 Relatórios (impressão)</h3>
+  <ol class="steps">
+    <li>Menu <b>Relatórios</b> → escolha o sábado e os dias (sábado, domingo ou os dois).</li>
+    <li>Marque <b>Detalhado (com placa)</b> se quiser a coluna de placa.</li>
+    <li>Use <span class="btn blue">Imprimir</span>, <span class="btn">Baixar PDF (A4)</span> ou <span class="btn green">Enviar pelo WhatsApp</span>.</li>
+  </ol>
+  <figure><img src="img/18-relatorio.jpg" alt="Relatório" /><figcaption>Relatório no formato “ESCALA SÁBADO DD-MM-AAAA”: SEQ, CARRO, HORA, LINHA, REND., MOTORISTA e COBRADOR, separado por turno.</figcaption></figure>
+  <h3>7.4 Envio individual</h3>
+  <p>Em <b>Relatórios → Envio individual</b>, cada pessoa escalada aparece com o WhatsApp cadastrado. Clique em <b>WhatsApp</b> para mandar só a escala dela.</p>
+  <figure><img src="img/19-envio-individual.jpg" alt="Envio individual" /><figcaption>Mensagem individual com o serviço da pessoa.</figcaption></figure>
+</section>
+
+<section class="chapter" id="historico">
+  <h2 class="ch"><span class="n">8</span> Histórico</h2>
+  <p class="lead">Consulte escalas anteriores e quem trabalhou em cada data.</p>
+  <ol class="steps">
+    <li>Menu <b>Histórico</b>. Na aba <b>Escalas</b>, filtre por período e status; clique em <b>Abrir</b> ou <b>Relatório</b>.</li>
+    <li>Na aba <b>Participações</b>, filtre por data, função, pessoa e linha.</li>
+    <li>Administradores podem <b>Apagar</b> uma escala (uma cópia de segurança é guardada).</li>
+  </ol>
+  <figure><img src="img/20-historico.jpg" alt="Histórico" /><figcaption>Lista de escalas por fim de semana.</figcaption></figure>
+  <figure><img src="img/21-participacoes.jpg" alt="Participações" /><figcaption>Participações: quem trabalhou, em que linha, carro e horário.</figcaption></figure>
+</section>
+
+<section class="chapter" id="cadastros">
+  <h2 class="ch"><span class="n">9</span> Cadastros</h2>
+  <h3>9.1 Pessoas</h3>
+  <ol class="steps">
+    <li>Menu <b>Pessoas</b>. Use as abas <b>Todos / Motoristas / Cobradores</b> e a busca.</li>
+    <li>Clique em <span class="btn blue">+ Nova Pessoa</span> e preencha: nome completo, função, nome do turno, horário inicial e final (regime) e WhatsApp com DDD e código do país (opcional).</li>
+    <li>Clique em <b>Salvar</b>.</li>
+  </ol>
+  <figure><img src="img/22-pessoas.jpg" alt="Pessoas" /><figcaption>Cadastro de pessoas com função, turno, regime e telefone.</figcaption></figure>
+  <figure><img src="img/23-nova-pessoa.jpg" alt="Nova pessoa" /><figcaption>Formulário de nova pessoa.</figcaption></figure>
+  <p>Ícones de cada linha: <kbd>✎</kbd> editar · <kbd>⏻</kbd> inativar/reativar · <kbd>🗑</kbd> excluir.</p>
+  <figure><img src="img/24-acoes-pessoa.jpg" alt="Ações" /><figcaption>Ações da pessoa.</figcaption></figure>
+  <div class="warn"><b>Excluir x Inativar</b>Quem já participou de alguma escala não pode ser excluído (para não estragar o histórico) — use <b>Inativar</b>. Pessoa inativa não entra mais no sorteio.</div>
+  <h3>9.2 Linhas</h3>
+  <p>Menu <b>Linhas</b> → <span class="btn blue">+ Nova Linha</span>: código (ex.: 0.783, 141.8) e descrição/itinerário (opcional).</p>
+  <figure><img src="img/25-linhas.jpg" alt="Linhas" /><figcaption>Linhas de ônibus.</figcaption></figure>
+  <h3>9.3 Ônibus</h3>
+  <p>Menu <b>Ônibus</b> → <span class="btn blue">+ Novo Ônibus</span>: número de frota (carro) e placa (opcional).</p>
+  <figure><img src="img/26-onibus.jpg" alt="Ônibus" /><figcaption>Cadastro de ônibus.</figcaption></figure>
+  <h3>9.4 Serviços (modelo do fim de semana)</h3>
+  <p>Cada <b>serviço</b> é uma vaga de motorista + cobrador que se repete todo fim de semana. É a partir deles que o sorteio monta a escala.</p>
+  <ol class="steps">
+    <li>Menu <b>Serviços</b> → <span class="btn blue">+ Novo Serviço</span>.</li>
+    <li>Escolha o dia (sábado ou domingo), a linha, o ônibus (ou “a definir”), a saída, o término/rendição e o turno.</li>
+    <li>O mesmo carro só pode estar em serviços que não se sobrepõem.</li>
+  </ol>
+  <figure><img src="img/27-servicos.jpg" alt="Serviços" /><figcaption>Lista de serviços de sábado e domingo.</figcaption></figure>
+  <figure><img src="img/28-novo-servico.jpg" alt="Novo serviço" /><figcaption>Formulário de novo serviço.</figcaption></figure>
+</section>
+
+<section class="chapter" id="config">
+  <h2 class="ch"><span class="n">10</span> Configurações, usuários e backup</h2>
+  <h3>10.1 Geral e regras</h3>
+  <p>Nome da empresa (aparece nos relatórios), limite de serviços por pessoa por dia, se a mesma pessoa pode trabalhar sábado e domingo (padrão: não) e se o sorteio pode completar vagas com dobra fora do turno (padrão: sim).</p>
+  <figure><img src="img/29-config-geral.jpg" alt="Configurações gerais" /><figcaption>Configurações gerais e regras.</figcaption></figure>
+  <h3>10.2 Usuários e acessos (somente administrador)</h3>
+  <ol class="steps">
+    <li>Preencha <b>Login</b> e <b>Senha</b> (mínimo 6 caracteres) e escolha o tipo: <b>Operador</b> (usa o sistema) ou <b>Administrador</b> (também gerencia acessos).</li>
+    <li>Clique em <span class="btn blue">+ Criar acesso</span>.</li>
+    <li>Na lista: <b>Redefinir senha</b>, <b>Tornar administrador/operador</b> ou <b>Excluir</b>.</li>
+  </ol>
+  <figure><img src="img/30-usuarios.jpg" alt="Usuários" /><figcaption>Gerenciamento de usuários e acessos.</figcaption></figure>
+  <h3>10.3 Destinatários do WhatsApp</h3>
+  <p>Cadastre os contatos que recebem a escala (nome e número com código do país e DDD, ex.: +55 61 99999-0000).</p>
+  <figure><img src="img/31-destinatarios.jpg" alt="Destinatários" /><figcaption>Destinatários do WhatsApp.</figcaption></figure>
+  <h3>10.4 Backup e apagar histórico</h3>
+  <ul>
+    <li><b>Exportar backup</b>: baixa um arquivo com todos os dados. Guarde em local seguro.</li>
+    <li><b>Importar backup</b>: o arquivo é conferido antes; para substituir os dados é preciso digitar <kbd>SUBSTITUIR</kbd>.</li>
+    <li><b>Apagar histórico de escalas</b> (administrador): digite <kbd>APAGAR</kbd>. Cadastros não são afetados e uma cópia de segurança é guardada.</li>
+  </ul>
+  <figure><img src="img/32-backup-apagar.jpg" alt="Backup" /><figcaption>Backup e apagar histórico.</figcaption></figure>
+  <h3>10.5 Minha senha</h3>
+  <p>Informe a senha atual, a nova senha (mínimo 6 caracteres) e repita. Clique em <b>Alterar minha senha</b>. Os outros aparelhos conectados com seu usuário são desconectados.</p>
+  <figure><img src="img/33-minha-senha.jpg" alt="Minha senha" /><figcaption>Troca da própria senha.</figcaption></figure>
+  <div class="tip"><b>Modo demonstração</b>Em Configurações há o <b>modo demonstração</b>, com dados fictícios separados dos reais — bom para treinar sem risco. Uma faixa roxa indica que você está nele.</div>
+</section>
+
+<section class="chapter" id="celular">
+  <h2 class="ch"><span class="n">11</span> Uso no celular e sem internet</h2>
+  <p class="lead">No celular, a escala aparece em cartões, com uma faixa colorida por turno (verde = manhã, amarelo = tarde). O menu abre no botão <kbd>☰</kbd>.</p>
+  <figure class="phone"><img src="img/34-celular-escala.jpg" alt="Escala no celular" /><figcaption>Escala no celular.</figcaption></figure>
+  <figure class="phone"><img src="img/35-celular-menu.jpg" alt="Menu no celular" /><figcaption>Menu no celular.</figcaption></figure>
+  <figure class="phone"><img src="img/36-celular-instalar.jpg" alt="Instalar no iPhone" /><figcaption>Instruções para instalar no iPhone.</figcaption></figure>
+  <h3>Instalar como aplicativo</h3>
+  <ul>
+    <li><b>Android (Chrome):</b> toque em <b>Instalar</b> no menu do sistema ou no menu ⋮ do Chrome → <i>Instalar aplicativo</i>.</li>
+    <li><b>iPhone (Safari):</b> toque em <b>Compartilhar</b> → <b>Adicionar à Tela de Início</b> → <b>Adicionar</b>.</li>
+  </ul>
+  <h3>Sem internet</h3>
+  <p>A última escala aberta e os cadastros ficam disponíveis para <b>consulta</b> sem internet. Uma faixa vermelha avisa que está offline e <b>as alterações ficam bloqueadas</b> até a conexão voltar.</p>
+</section>
+
+<section class="chapter" id="duvidas">
+  <h2 class="ch"><span class="n">12</span> Dúvidas frequentes</h2>
+  <table class="t">
+    <tr><th>Situação</th><th>O que fazer</th></tr>
+    <tr><td>O botão “Confirmar escala” está bloqueado.</td><td>Há pendências (amarelo) ou regras violadas (vermelho). Resolva o que aparece nas mensagens acima da tabela e salve.</td></tr>
+    <tr><td>Uma pessoa aparece desabilitada na lista.</td><td>O motivo aparece ao lado do nome (ex.: “trabalhou no sábado anterior”, “já escalado no outro dia deste fim de semana”, “horário sobreposto”).</td></tr>
+    <tr><td>Aviso “fora do turno”.</td><td>Faltou gente no turno e o sistema completou a vaga com dobra. Se preferir, troque a pessoa na célula.</td></tr>
+    <tr><td>Aviso “não há escala confirmada para o sábado anterior”.</td><td>O sistema não tem o histórico daquele dia e não consegue verificar a alternância. Cadastre e confirme a escala anterior.</td></tr>
+    <tr><td>“A escala foi alterada em outro dispositivo”.</td><td>Outra pessoa salvou antes. A tela recarrega com a versão atual; refaça sua alteração.</td></tr>
+    <tr><td>Esqueci a senha.</td><td>Peça a um administrador para usar <b>Redefinir senha</b> em Configurações → Usuários e acessos.</td></tr>
+  </table>
+</section>
+
+<footer>EscalaBus — Manual do Usuário</footer>
+</main>
+<a class="back" href="/">← Voltar ao sistema</a>
+</body>
+</html>
