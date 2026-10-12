@@ -8,7 +8,7 @@ import { weekdayOf, weekendSaturdayOf } from '../shared/time.js';
 import type { Entry } from '../shared/types.js';
 
 /** Janela de disponibilidade padrão por turno (ajustável depois em Pessoas). */
-const SHIFT_WINDOWS: Record<string, [string, string]> = { 'Manhã': ['05:00', '16:00'], 'Tarde': ['11:00', '01:00'] };
+const SHIFT_WINDOWS: Record<string, [string, string]> = { 'Manhã': ['05:00', '18:00'], 'Tarde': ['10:00', '00:00'] };
 const sortShifts = (s: Set<string>) => [...s].sort((a, b) => (a === 'Manhã' ? -1 : b === 'Manhã' ? 1 : a.localeCompare(b)));
 export function shiftWindow(shifts: Set<string>): { start: string; end: string } {
   const ws = [...shifts].map((x) => SHIFT_WINDOWS[x]).filter(Boolean);
@@ -38,6 +38,15 @@ export async function applySeeds(q: Q) {
         [w.start, w.end, sortShifts(shifts).join(' e '), nowIso(), name, role]);
     }
     await q('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)', [FIX, nowIso()]);
+  }
+  // Regime definido pela empresa: Manhã 05:00–18:00, Tarde 10:00–00:00, os dois turnos 05:00–00:00.
+  const FIX2 = 'turnos_regime_v2';
+  if (!(await q('SELECT 1 FROM schema_migrations WHERE version = ?', [FIX2])).length) {
+    for (const [shiftName, shifts] of [['Manhã', ['Manhã']], ['Tarde', ['Tarde']], ['Manhã e Tarde', ['Manhã', 'Tarde']]] as const) {
+      const w = shiftWindow(new Set(shifts));
+      await q('UPDATE people SET avail_start = ?, avail_end = ?, updated_at = ? WHERE shift_name = ?', [w.start, w.end, nowIso(), shiftName]);
+    }
+    await q('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)', [FIX2, nowIso()]);
   }
 }
 

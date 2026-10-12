@@ -243,7 +243,10 @@ describe('dados reais importados da escala em papel', () => {
     expect(cat.settings.maxServicesPerDay).toBe(2);
     const lauro = cat.people.filter((p: { name: string }) => p.name === 'LAURO NETO');
     expect(lauro).toHaveLength(1);
-    expect(lauro[0]).toMatchObject({ role: 'motorista', availStart: '05:00', availEnd: '01:00', shiftName: 'Manhã e Tarde' });
+    expect(lauro[0]).toMatchObject({ role: 'motorista', availStart: '05:00', availEnd: '00:00', shiftName: 'Manhã e Tarde' });
+    const byShift = (s: string) => cat.people.find((p: { shiftName: string }) => p.shiftName === s);
+    expect(byShift('Manhã')).toMatchObject({ availStart: '05:00', availEnd: '18:00' });
+    expect(byShift('Tarde')).toMatchObject({ availStart: '10:00', availEnd: '00:00' });
     const w = (await a.get('/api/weekend/2026-10-10')).body;
     expect(w.schedule.status).toBe('confirmada');
     expect(w.schedule.entries.filter((e: Entry) => e.date === '2026-10-11')).toHaveLength(54);
