@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getCached } from '../api';
+import { getCached, send } from '../api';
 import { useApp } from '../state';
 import { PageHeader } from '../components/PageHeader';
 import { Empty, Field, fmtDateTime, StatusBadge } from '../components/ui';
@@ -11,7 +11,7 @@ import { addDays, dayLabel, fmtDate, todayLocal } from '../../shared/time';
 type Row = Entry & { scheduleId: number; status: string; saturday: string };
 
 export function HistoricoPage() {
-  const { catalog } = useApp();
+  const { catalog, me, online, toast } = useApp();
   const [tab, setTab] = useState<'escalas' | 'participacoes'>('escalas');
   const [from, setFrom] = useState(addDays(todayLocal(), -90));
   const [to, setTo] = useState(addDays(todayLocal(), 30));
@@ -75,7 +75,13 @@ export function HistoricoPage() {
             <tr key={s.id}>
               <td>{fmtDate(s.saturday)}</td><td>{fmtDate(s.sunday)}</td><td><StatusBadge status={s.status} />{s.cancelReason ? <span className="muted small"> {s.cancelReason}</span> : null}</td>
               <td>{s.entryCount}</td><td>{s.openCount || ''}</td><td className="nowrap">{fmtDateTime(s.updatedAt)}</td>
-              <td className="actions">{s.status !== 'cancelada' && <><Link className="btn btn-sm" to={`/escala?sabado=${s.saturday}`}>Abrir</Link><Link className="btn btn-sm" to={`/relatorio?sabado=${s.saturday}`}>Relatório</Link></>}</td>
+              <td className="actions">
+                {s.status !== 'cancelada' && <><Link className="btn btn-sm" to={`/escala?sabado=${s.saturday}`}>Abrir</Link><Link className="btn btn-sm" to={`/relatorio?sabado=${s.saturday}`}>Relatório</Link></>}
+                {me?.isAdmin && <button className="btn btn-sm btn-danger-ghost" disabled={!online} onClick={async () => {
+                  if (!confirm(`Apagar de vez a escala de ${fmtDate(s.saturday)}? Uma cópia fica guardada no banco.`)) return;
+                  try { await send('DELETE', `/api/schedules/${s.id}`); setSchedules((xs) => xs?.filter((x) => x.id !== s.id) ?? null); toast('Escala apagada.'); } catch (e) { toast((e as Error).message, 'err'); }
+                }}>Apagar</button>}
+              </td>
             </tr>
           ))}</tbody>
         </table></div>

@@ -71,7 +71,7 @@ const recipientIn = z.object({
   name: z.string().trim().min(1, 'Informe o nome.').max(120),
   phone: z.string().trim().refine((v) => !phoneProblem(v), { message: 'Número inválido: inclua código do país e DDD.' }),
 });
-const settingsIn = z.object({ companyName: z.string().trim().min(1).max(120), maxServicesPerDay: z.number().int().min(1).max(5), allowBothDays: z.boolean().default(false) });
+const settingsIn = z.object({ companyName: z.string().trim().min(1).max(120), maxServicesPerDay: z.number().int().min(1).max(5), allowBothDays: z.boolean().default(false), allowOutsideShift: z.boolean().default(true) });
 const entryIn = z.object({
   id: z.string().min(1).max(64),
   date: z.string().refine(isValidDate, 'Data inválida.'),
@@ -470,6 +470,38 @@ export function createApp(opts: AppOptions) {
     const id = idParam(req);
     const b = parse(z.object({ a: z.string(), b: z.string(), field: z.enum(['driver', 'conductor', 'line', 'bus']), version: z.number().int(), reason: z.string().max(500).nullable().optional() }), req.body);
     res.json(await data(req, (q) => sch.swapEntries(q, A(req).auth.username, id, b)));
+  });
+
+  /** Apaga de vez escalas (somente administradores). Guarda antes uma cópia em backup_snapshots. */
+  const purge = async (q: Q, ids: number[] | null, username: string) => {
+    const where = ids ? 'WHERE id = ANY(?)' : '';
+    const whereE = ids ? 'WHERE schedule_id = ANY(?)' : '';
+    const args = ids ? [ids] : [];
+    const data = {
+      schedules: await q(`SELECT * FROM schedules ${where}`, args),
+      schedule_entries: await q(`SELECT * FROM schedule_entries ${whereE}`, args),
+      schedule_audit: await q(`SELECT * FROM schedule_audit ${whereE}`, args),
+    };
+    if (!data.schedules.length) return 0;
+    await q('INSERT INTO backup_snapshots (created_at, reason, data) VALUES (?, ?, ?)',
+      [nowIso(), `escalas apagadas por ${username}`, JSON.stringify(data)]);
+    await q(`DELETE FROM schedule_entries ${whereE}`, args);
+    await q(`DELETE FROM schedule_audit ${whereE}`, args);
+    await q(`DELETE FROM schedules ${where}`, args);
+    return data.schedules.length;
+  };
+  app.delete('/api/schedules/:id', async (req, res) => {
+    if (!A(req).auth.isAdmin) throw new HttpError(403, 'Somente administradores podem apagar escalas.');
+    const id = idParam(req);
+    const n = await data(req, (q) => purge(q, [id], A(req).auth.username));
+    if (!n) throw new HttpError(404, 'Escala não encontrada.');
+    res.json({ ok: true });
+  });
+  app.post('/api/schedules/purge', async (req, res) => {
+    if (!A(req).auth.isAdmin) throw new HttpError(403, 'Somente administradores podem apagar o histórico.');
+    parse(z.object({ confirm: z.literal('APAGAR', { message: 'Digite APAGAR para confirmar.' }) }), req.body);
+    const n = await data(req, (q) => purge(q, null, A(req).auth.username));
+    res.json({ ok: true, deleted: n });
   });
 
   app.get('/api/schedules/:id/audit', async (req, res) => {

@@ -13,7 +13,7 @@ export interface RuleContext {
   buses: Map<number, Bus>;
   /** Participações em OUTRAS escalas confirmadas (normalmente ±7 dias do fim de semana). */
   otherConfirmed: ConfirmedWork[];
-  settings: Pick<Settings, 'maxServicesPerDay' | 'allowBothDays'>;
+  settings: Pick<Settings, 'maxServicesPerDay' | 'allowBothDays' | 'allowOutsideShift'>;
   /**
    * Versão já salva da escala. Atribuições que não mudaram (mesma pessoa, mesma vaga, mesmos horários)
    * não são reprovadas por mudanças posteriores no cadastro (pessoa inativada, turno alterado),
@@ -95,7 +95,7 @@ export function candidateProblem(
   if (!opts.skipCadastro) {
     if (person.role !== roleOf(role)) return { code: 'ROLE', text: `é ${person.role}, não ${ROLE_TEXT[role]}` };
     if (!person.active) return { code: 'PERSON_INACTIVE', text: 'está inativo(a)' };
-    if (entryTimesValid(entry) && !fitsAvailability(entry.date, entry.startTime, entry.endTime, person.availStart, person.availEnd)) {
+    if (!ctx.settings.allowOutsideShift && entryTimesValid(entry) && !fitsAvailability(entry.date, entry.startTime, entry.endTime, person.availStart, person.availEnd)) {
       return { code: 'AVAILABILITY', text: `turno incompatível (disponível ${person.availStart}–${person.availEnd})` };
     }
   }
@@ -185,9 +185,11 @@ export function validateSchedule(entries: Entry[], ctx: RuleContext): Issue[] {
         continue;
       }
       // Sobreposição e limite diário são verificados abaixo de forma agregada; aqui: cadastro + alternância.
-      const problem = candidateProblem(e, role, p, { settings: { maxServicesPerDay: Infinity }, confirmedIdx }, [], { skipCadastro: keep });
+      const problem = candidateProblem(e, role, p, { settings: { maxServicesPerDay: Infinity, allowOutsideShift: ctx.settings.allowOutsideShift }, confirmedIdx }, [], { skipCadastro: keep });
       if (problem) {
         issues.push({ code: problem.code, severity: 'error', entryId: e.id, role, message: `${label(e)}: ${p.name} ${problem.text}.` });
+      } else if (!keep && ctx.settings.allowOutsideShift && isOutsideShift(e, p)) {
+        issues.push({ code: 'OUTSIDE_SHIFT', severity: 'warning', entryId: e.id, role, message: `${label(e)}: ${p.name} fora do turno (disponível ${p.availStart}–${p.availEnd}) — dobra.` });
       }
     }
   }
@@ -295,6 +297,11 @@ function dedupe(issues: Issue[]): Issue[] {
     seen.add(k);
     return true;
   });
+}
+
+/** O serviço não cabe na janela de disponibilidade (turno) da pessoa. */
+export function isOutsideShift(e: Pick<Entry, 'date' | 'startTime' | 'endTime'>, p: Pick<Person, 'availStart' | 'availEnd'>): boolean {
+  return entryTimesValid(e) && !fitsAvailability(e.date, e.startTime, e.endTime, p.availStart, p.availEnd);
 }
 
 export const hasErrors = (issues: Issue[]) => issues.some((i) => i.severity === 'error');

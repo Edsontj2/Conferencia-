@@ -426,3 +426,6 @@ select.chip-cell { cursor: pointer; appearance: auto; }
 .time-pair .cell-input { width: 88px; }
 details.alert summary { cursor: pointer; }
 details.alert summary::marker { color: currentColor; }
+
+.danger-zone { border-color: #fecaca; }
+.danger-zone h2 { color: var(--err); }

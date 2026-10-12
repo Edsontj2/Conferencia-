@@ -15,6 +15,7 @@ export function ConfiguracoesPage() {
   const [company, setCompany] = useState<string | null>(null);
   const [limit, setLimit] = useState<number | null>(null);
   const [both, setBoth] = useState<boolean | null>(null);
+  const [outside, setOutside] = useState<boolean | null>(null);
   const [rec, setRec] = useState<Partial<Recipient> | null>(null);
   const [imp, setImp] = useState<{ data: unknown; check: BackupCheck; name: string } | null>(null);
   const [ios, setIos] = useState(false);
@@ -24,8 +25,8 @@ export function ConfiguracoesPage() {
 
   const saveSettings = async () => {
     try {
-      await send('PUT', '/api/settings', { companyName: (company ?? s.companyName).trim(), maxServicesPerDay: limit ?? s.maxServicesPerDay, allowBothDays: both ?? !!s.allowBothDays });
-      toast('Configurações salvas.'); setCompany(null); setLimit(null); setBoth(null); await reloadCatalog();
+      await send('PUT', '/api/settings', { companyName: (company ?? s.companyName).trim(), maxServicesPerDay: limit ?? s.maxServicesPerDay, allowBothDays: both ?? !!s.allowBothDays, allowOutsideShift: outside ?? s.allowOutsideShift !== false });
+      toast('Configurações salvas.'); setCompany(null); setLimit(null); setBoth(null); setOutside(null); await reloadCatalog();
     } catch (e) { toast((e as Error).message, 'err'); }
   };
 
@@ -56,7 +57,12 @@ export function ConfiguracoesPage() {
           Permitir a mesma pessoa no sábado e no domingo do mesmo fim de semana
         </label>
         <p className="muted small" style={{ marginTop: '-.5rem' }}>Desmarcado (padrão): um dia por fim de semana, alternando — quem trabalha no sábado não trabalha no domingo seguinte nem no próximo sábado.</p>
-        <button className="btn btn-primary" disabled={!online || (company === null && limit === null && both === null)} onClick={() => void saveSettings()}>Salvar</button>
+        <label className="check" style={{ margin: '.9rem 0' }}>
+          <input type="checkbox" checked={outside ?? s.allowOutsideShift !== false} onChange={(e) => setOutside(e.target.checked)} />
+          Completar todas as vagas usando pessoas fora do próprio turno (dobra) quando faltar gente
+        </label>
+        <p className="muted small" style={{ marginTop: '-.5rem' }}>Marcado (padrão): o sorteio sempre prefere quem está no turno e só usa dobra para não deixar vaga vazia; essas vagas ficam com aviso "fora do turno". As regras de alternância e de um dia por fim de semana continuam valendo.</p>
+        <button className="btn btn-primary" disabled={!online || (company === null && limit === null && both === null && outside === null)} onClick={() => void saveSettings()}>Salvar</button>
       </section>
 
       <section className="card">
@@ -86,6 +92,8 @@ export function ConfiguracoesPage() {
           </label>
         </div>
       </section>
+
+      {me?.isAdmin && <PurgeSection />}
 
       <section className="card">
         <h2>Modo de demonstração</h2>
@@ -238,6 +246,33 @@ function UsersSection() {
           <p className="muted small">As sessões abertas desse usuário em outros aparelhos serão encerradas.</p>
         </Modal>
       )}
+    </section>
+  );
+}
+
+/** Apaga todo o histórico de escalas do modo atual (cadastros não são afetados). */
+function PurgeSection() {
+  const { toast, online, me } = useApp();
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  return (
+    <section className="card danger-zone">
+      <h2>Apagar histórico de escalas</h2>
+      <p className="muted small">Apaga <strong>todas</strong> as escalas {me?.mode === 'demo' ? 'da DEMONSTRAÇÃO' : 'reais'} (confirmadas, rascunhos e canceladas) e o registro de alterações delas.
+        Pessoas, linhas, ônibus e serviços <strong>não</strong> são apagados. Uma cópia fica guardada no banco (tabela de cópias de segurança).
+        Atenção: sem histórico, a regra de alternância não consegue verificar quem trabalhou no fim de semana anterior.</p>
+      <div className="form-grid two">
+        <Field label='Digite APAGAR para confirmar'><input value={typed} onChange={(e) => setTyped(e.target.value)} /></Field>
+      </div>
+      <div className="actionbar">
+        <button className="btn btn-danger" disabled={!online || typed !== 'APAGAR' || busy} onClick={async () => {
+          setBusy(true);
+          try {
+            const r = await send<{ deleted: number }>('POST', '/api/schedules/purge', { confirm: 'APAGAR' });
+            setTyped(''); toast(`${r.deleted} escala(s) apagada(s).`);
+          } catch (e) { toast((e as Error).message, 'err'); } finally { setBusy(false); }
+        }}>Apagar todo o histórico de escalas</button>
+      </div>
     </section>
   );
 }
