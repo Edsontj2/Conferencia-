@@ -45,3 +45,11 @@ describe('turnos atravessando a meia-noite', () => {
     expect(fitsAvailability('2026-10-17', '22:00', '03:00', '00:00', '00:00')).toBe(true);
   });
 });
+
+import { cleanUrl } from '../server/db';
+describe('conexão Supabase', () => {
+  it('remove parâmetros da POSTGRES_URL que conflitam com o driver', () => {
+    expect(cleanUrl('postgres://u:p@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x'))
+      .toBe('postgres://u:p@aws-0-sa-east-1.pooler.supabase.com:6543/postgres');
+  });
+});

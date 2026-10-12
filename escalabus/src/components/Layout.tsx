@@ -38,6 +38,11 @@ export function Layout() {
           MODO DEMONSTRAÇÃO — dados fictícios, armazenados separadamente dos dados reais. Volte ao modo real em Configurações.
         </div>
       )}
+      {me?.mustChange && (
+        <div className="banner banner-offline no-print" role="alert">
+          Você está usando a senha padrão. <NavLink to="/configuracoes" style={{ color: '#fff' }}>Troque agora em Configurações → Minha senha</NavLink>.
+        </div>
+      )}
       {!online && (
         <div className="banner banner-offline no-print" role="alert">
           ● Você está OFFLINE. Exibindo a última cópia carregada{catalogSavedAt ? ` (${fmtDateTime(catalogSavedAt)})` : ''}. Alterações estão bloqueadas.

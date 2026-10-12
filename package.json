@@ -2,5 +2,8 @@
   "name": "conferencia-raiz",
   "private": true,
   "type": "module",
-  "description": "Raiz do repositório: o EscalaBus fica em escalabus/. Este arquivo só existe para o deploy na Vercel."
+  "description": "Raiz do repositório: o EscalaBus fica em escalabus/. Este arquivo só existe para o deploy na Vercel.",
+  "engines": {
+    "node": "24.x"
+  }
 }

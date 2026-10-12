@@ -19,7 +19,8 @@ export function config() {
     port: Number(process.env.PORT ?? 3000),
     host: process.env.HOST ?? '0.0.0.0',
     /** Supabase/Postgres. Vazio = Postgres embutido (PGlite) em DATA_DIR/pglite. */
-    databaseUrl: process.env.DATABASE_URL || '',
+    // DATABASE_URL, ou POSTGRES_URL criada pela integração Supabase do Marketplace da Vercel
+    databaseUrl: process.env.DATABASE_URL || process.env.POSTGRES_URL || '',
     pgliteDir: path.join(dataDir, 'pglite'),
     schemaPrefix: process.env.DB_SCHEMA || 'escalabus',
     adminUsername: process.env.ADMIN_USERNAME || 'admin',

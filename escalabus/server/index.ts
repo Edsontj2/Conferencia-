@@ -15,12 +15,7 @@ const opts = {
   initialAdmin: { username: cfg.adminUsername, password: cfg.adminPassword },
   staticDir: path.join(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), 'dist'),
 };
-await prepareDatabase(opts);
-const hasAdmin = await db.tx('real', async (q) => (await q('SELECT 1 FROM users LIMIT 1')).length > 0);
-if (!hasAdmin) {
-  console.error('Nenhum administrador cadastrado. Defina ADMIN_USERNAME e ADMIN_PASSWORD no .env ou rode: npm run create-admin');
-  process.exit(1);
-}
+await prepareDatabase(opts); // sem usuários, cria admin/admin (com aviso para trocar a senha)
 
 const app = createApp(opts);
 const server = app.listen(cfg.port, cfg.host, () => {
