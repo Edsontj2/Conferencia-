@@ -100,6 +100,18 @@ export function cleanUrl(raw: string): string {
   }
 }
 
+/**
+ * O pooler do Supabase fica em clusters diferentes conforme o projeto (aws-0-…, aws-1-…).
+ * Se o endereço informado responder "Tenant or user not found", tenta os outros clusters da mesma região.
+ */
+export function poolerCandidates(url: string): string[] {
+  const m = /@aws-(\d+)-([a-z0-9-]+)\.pooler\.supabase\.com/.exec(url);
+  if (!m) return [url];
+  const others = [0, 1, 2].filter((n) => String(n) !== m[1])
+    .map((n) => url.replace(`@aws-${m[1]}-${m[2]}.pooler`, `@aws-${n}-${m[2]}.pooler`));
+  return [url, ...others];
+}
+
 export interface DbOptions {
   /** postgres://… (Supabase). Vazio = PGlite em `pgliteDir` (ou em memória). */
   databaseUrl?: string;
@@ -114,12 +126,29 @@ export async function openDatabase(opts: DbOptions = {}): Promise<Database> {
     const pg = await import('pg');
     const Pool = pg.default?.Pool ?? (pg as unknown as { Pool: typeof PgPool }).Pool;
     const local = /@(localhost|127\.0\.0\.1)[:/]/.test(opts.databaseUrl);
-    runner = pgRunner(new Pool({
-      connectionString: cleanUrl(opts.databaseUrl),
+    const makePool = (url: string) => new Pool({
+      connectionString: url,
       max: Number(process.env.DB_POOL_MAX ?? 3),
       idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 10_000,
       ssl: local ? undefined : { rejectUnauthorized: false },
-    }));
+    });
+    let pool: PgPool | null = null;
+    let lastErr: unknown = null;
+    for (const url of poolerCandidates(cleanUrl(opts.databaseUrl))) {
+      const p = makePool(url);
+      try {
+        await p.query('SELECT 1');
+        pool = p;
+        break;
+      } catch (e) {
+        lastErr = e;
+        await p.end().catch(() => {});
+        if (!/tenant or user not found/i.test(String((e as Error).message))) break;
+      }
+    }
+    if (!pool) throw lastErr;
+    runner = pgRunner(pool);
   } else {
     runner = await pgliteRunner(opts.pgliteDir);
   }
