@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../state';
 import { Field } from '../components/ui';
 import { InstallButton } from '../components/InstallButton';
+import { Logo } from '../components/Logo';
 
 export function LoginPage() {
   const { login, online } = useApp();
@@ -15,7 +16,8 @@ export function LoginPage() {
         e.preventDefault(); setBusy(true); setErr(null);
         try { await login(u, p); } catch (x) { setErr((x as Error).message); } finally { setBusy(false); }
       }}>
-        <div className="login-brand"><img src="/icons/icon-192.png" alt="" width={48} height={48} /><div><h1>EscalaBus</h1><p className="muted">Escalas de fim de semana</p></div></div>
+        <div className="login-brand"><Logo size={48} dark={false} /></div>
+        <p className="muted" style={{ margin: 0 }}>Escalas de motoristas e cobradores de fim de semana</p>
         {!online && <div className="alert alert-warn">Sem conexão com o servidor. É preciso estar online para entrar.</div>}
         <Field label="Usuário"><input value={u} onChange={(e) => setU(e.target.value)} autoComplete="username" autoCapitalize="none" required /></Field>
         <Field label="Senha"><input type="password" value={p} onChange={(e) => setP(e.target.value)} autoComplete="current-password" required /></Field>

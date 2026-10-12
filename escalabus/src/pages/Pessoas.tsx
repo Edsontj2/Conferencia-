@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ApiError, send } from '../api';
 import { useApp } from '../state';
+import { Icon } from '../components/Icons';
+import { IconAction, PageHeader } from '../components/PageHeader';
 import { ActiveBadge, Empty, Field, Modal } from '../components/ui';
 import type { Person } from '../../shared/types';
 import { ROLE_LABEL } from '../../shared/types';
@@ -40,15 +42,17 @@ export function PessoasPage() {
 
   return (
     <div>
-      <div className="page-head">
-        <h1>Pessoas</h1>
-        <button className="btn btn-primary" disabled={!online} onClick={() => setEdit({ ...blank })}>+ Nova pessoa</button>
+      <PageHeader title="Cadastro de Pessoas" subtitle="Motoristas e cobradores, turnos e contatos"
+        right={<button className="btn btn-primary" disabled={!online} onClick={() => setEdit({ ...blank, role: role === 'cobrador' ? 'cobrador' : 'motorista' })}><Icon.plus /> Nova Pessoa</button>} />
+      <div className="panel">
+      <div className="u-tabs">
+        {[['', 'Todos'], ['motorista', 'Motoristas'], ['cobrador', 'Cobradores']].map(([v, l]) => (
+          <button key={v} className={role === v ? 'active' : ''} onClick={() => setRole(v)}>{l}
+            <span className="count">{(catalog.people ?? []).filter((p) => (!v || p.role === v) && (status === 'todos' || (status === 'ativos') === p.active)).length}</span></button>
+        ))}
       </div>
       <div className="filters">
-        <input type="search" placeholder="Pesquisar nome, turno ou telefone" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select value={role} onChange={(e) => setRole(e.target.value)} aria-label="Função">
-          <option value="">Todas as funções</option><option value="motorista">Motoristas</option><option value="cobrador">Cobradores</option>
-        </select>
+        <label className="search"><Icon.search /><input type="search" placeholder="Buscar por nome, turno ou telefone…" value={q} onChange={(e) => setQ(e.target.value)} /></label>
         <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Situação">
           <option value="ativos">Ativos</option><option value="inativos">Inativos</option><option value="todos">Todos</option>
         </select>
@@ -57,24 +61,24 @@ export function PessoasPage() {
       {list.length === 0 ? <Empty>Nenhuma pessoa encontrada.</Empty> : (
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Nome</th><th>Função</th><th>Turno</th><th>Disponível</th><th>WhatsApp</th><th>Situação</th><th>Escalas</th><th></th></tr></thead>
+            <thead><tr><th>Nome</th><th>Função</th><th>Turno</th><th>Disponível</th><th>Telefone</th><th>Situação</th><th>Escalas</th><th className="c">Ações</th></tr></thead>
             <tbody>
               {list.map((p) => {
                 const used = catalog.usage.people[p.id] ?? 0;
                 return (
                   <tr key={p.id} className={p.active ? '' : 'row-off'}>
                     <td>{p.name}</td>
-                    <td>{ROLE_LABEL[p.role]}</td>
+                    <td><span className={`role-badge ${p.role}`}>{ROLE_LABEL[p.role]}</span></td>
                     <td>{p.shiftName}</td>
                     <td className="nowrap">{p.availStart === p.availEnd ? '24 horas' : `${p.availStart}–${p.availEnd}${crossesMidnight(p.availStart, p.availEnd) ? ' (+1)' : ''}`}</td>
                     <td className="nowrap">{formatPhone(p.whatsapp)}</td>
                     <td><ActiveBadge active={p.active} /></td>
                     <td>{used}</td>
-                    <td className="actions">
-                      <button className="btn btn-sm" disabled={!online} onClick={() => setEdit({ ...p, whatsapp: p.whatsapp ?? '' })}>Editar</button>
-                      <button className="btn btn-sm" disabled={!online} onClick={() => void toggle(p)}>{p.active ? 'Inativar' : 'Reativar'}</button>
-                      {used === 0 && <button className="btn btn-sm btn-danger-ghost" disabled={!online} onClick={() => void remove(p)}>Excluir</button>}
-                    </td>
+                    <td className="c"><span className="row-actions">
+                      <IconAction title="Editar" disabled={!online} onClick={() => setEdit({ ...p, whatsapp: p.whatsapp ?? '' })}><Icon.edit /></IconAction>
+                      <IconAction kind="neutral" title={p.active ? 'Inativar' : 'Reativar'} disabled={!online} onClick={() => void toggle(p)}><Icon.power /></IconAction>
+                      <IconAction kind="danger" title={used ? 'Já usada em escalas: inative em vez de excluir' : 'Excluir'} disabled={!online || used > 0} onClick={() => void remove(p)}><Icon.trash /></IconAction>
+                    </span></td>
                   </tr>
                 );
               })}
@@ -82,7 +86,8 @@ export function PessoasPage() {
           </table>
         </div>
       )}
-      <p className="muted small">Pessoas que já participaram de escalas não podem ser excluídas — inative-as. O histórico guarda o nome usado em cada escala.</p>
+      <p className="muted small panel-note">Pessoas que já participaram de escalas não podem ser excluídas — inative-as. O histórico guarda o nome usado em cada escala.</p>
+      </div>
       {edit && <PersonForm initial={edit} used={edit.id ? (catalog.usage.people[edit.id] ?? 0) > 0 : false} onClose={() => setEdit(null)} onSaved={async () => { setEdit(null); await reloadCatalog(); }} />}
     </div>
   );

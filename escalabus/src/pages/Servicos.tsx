@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { send } from '../api';
 import { useApp } from '../state';
+import { Icon } from '../components/Icons';
+import { IconAction, PageHeader } from '../components/PageHeader';
 import { ActiveBadge, Empty, Field } from '../components/ui';
 import { SimpleForm } from './Linhas';
 import type { Service } from '../../shared/types';
@@ -40,11 +42,8 @@ export function ServicosPage() {
 
   return (
     <div>
-      <div className="page-head">
-        <h1>Serviços do fim de semana</h1>
-        <button className="btn btn-primary" disabled={!online} onClick={() => setEdit({ weekday: 6, lineId: '', busId: '', startTime: '05:00', endTime: '11:00', shiftName: '', active: true })}>+ Novo serviço</button>
-      </div>
-      <p className="muted">Cada serviço é uma vaga (motorista + cobrador) e funciona como modelo reutilizado em todos os fins de semana.</p>
+      <PageHeader title="Serviços do Fim de Semana" subtitle="Cada serviço é uma vaga (motorista + cobrador) e serve de modelo para todos os fins de semana"
+        right={<button className="btn btn-primary" disabled={!online} onClick={() => setEdit({ weekday: 6, lineId: '', busId: null, startTime: '05:00', endTime: '11:00', shiftName: '', active: true })}><Icon.plus /> Novo Serviço</button>} />
       <div className="filters">
         <select value={day} onChange={(e) => setDay(e.target.value as typeof day)} aria-label="Dia"><option value="">Sábado e domingo</option><option value="6">Sábado</option><option value="0">Domingo</option></select>
         <select value={lineF} onChange={(e) => setLineF(e.target.value)} aria-label="Linha"><option value="">Todas as linhas</option>{catalog.lines.map((l) => <option key={l.id} value={l.id}>{l.code}</option>)}</select>
@@ -53,7 +52,7 @@ export function ServicosPage() {
       </div>
       {list.length === 0 ? <Empty>Nenhum serviço. Cadastre linhas e ônibus e depois os serviços de sábado e domingo.</Empty> : (
         <div className="table-wrap"><table className="table">
-          <thead><tr><th>Dia</th><th>Turno</th><th>Saída</th><th>Rendição</th><th>Linha</th><th>Carro</th><th>Situação</th><th></th></tr></thead>
+          <thead><tr><th>Dia</th><th>Turno</th><th>Saída</th><th>Rendição</th><th>Linha</th><th>Carro</th><th>Situação</th><th className="c">Ações</th></tr></thead>
           <tbody>{list.map((s) => {
             const l = lines.get(s.lineId), b = s.busId == null ? undefined : buses.get(s.busId);
             return (
@@ -63,12 +62,12 @@ export function ServicosPage() {
                 <td>{l?.code}{l && !l.active ? ' (inativa)' : ''}</td>
                 <td>{b ? b.fleetNumber : <span className="muted">a definir</span>}{b && !b.active ? ' (inativo)' : ''}</td>
                 <td><ActiveBadge active={s.active} /></td>
-                <td className="actions">
-                  <button className="btn btn-sm" disabled={!online} onClick={() => setEdit({ ...s })}>Editar</button>
-                  <button className="btn btn-sm" disabled={!online} onClick={() => setEdit({ ...s, id: undefined })}>Duplicar</button>
-                  <button className="btn btn-sm" disabled={!online} onClick={() => void act(() => send('PUT', `/api/services/${s.id}`, payload({ ...s, active: !s.active })), 'Situação alterada.')}>{s.active ? 'Inativar' : 'Reativar'}</button>
-                  <button className="btn btn-sm btn-danger-ghost" disabled={!online} onClick={() => { if (confirm('Excluir este serviço-modelo? Escalas já geradas não são afetadas.')) void act(() => send('DELETE', `/api/services/${s.id}`), 'Serviço excluído.'); }}>Excluir</button>
-                </td>
+                <td className="c"><span className="row-actions">
+                  <IconAction title="Editar" disabled={!online} onClick={() => setEdit({ ...s })}><Icon.edit /></IconAction>
+                  <IconAction kind="neutral" title="Duplicar" disabled={!online} onClick={() => setEdit({ ...s, id: undefined })}><Icon.plus /></IconAction>
+                  <IconAction kind="neutral" title={s.active ? 'Inativar' : 'Reativar'} disabled={!online} onClick={() => void act(() => send('PUT', `/api/services/${s.id}`, payload({ ...s, active: !s.active })), 'Situação alterada.')}><Icon.power /></IconAction>
+                  <IconAction kind="danger" title="Excluir" disabled={!online} onClick={() => { if (confirm('Excluir este serviço-modelo? Escalas já geradas não são afetadas.')) void act(() => send('DELETE', `/api/services/${s.id}`), 'Serviço excluído.'); }}><Icon.trash /></IconAction>
+                </span></td>
               </tr>
             );
           })}</tbody>

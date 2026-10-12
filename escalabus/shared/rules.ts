@@ -208,9 +208,12 @@ export function validateSchedule(entries: Entry[], ctx: RuleContext): Issue[] {
         if (a.e.id === b.e.id) {
           issues.push({ code: 'SAME_ENTRY', severity: 'error', entryId: a.e.id, message: `${name} está duas vezes na mesma vaga.` });
         } else if (overlaps(entryInterval(a.e), entryInterval(b.e))) {
-          const msg = `${name} escalado(a) em horários sobrepostos: ${label(a.e)} e ${label(b.e)}.`;
-          issues.push({ code: 'PERSON_OVERLAP', severity: 'error', entryId: a.e.id, role: a.role, message: msg });
-          issues.push({ code: 'PERSON_OVERLAP', severity: 'error', entryId: b.e.id, role: b.role, message: msg });
+          // Sobreposição que já existia na versão salva (ex.: escala importada do papel) não bloqueia outras edições.
+          const pre = isGrandfathered(a.e, a.role, baseline) && isGrandfathered(b.e, b.role, baseline);
+          const msg = `${name} escalado(a) em horários sobrepostos: ${label(a.e)} e ${label(b.e)}.${pre ? ' (já existia na escala salva)' : ''}`;
+          const severity = pre ? 'warning' : 'error';
+          issues.push({ code: 'PERSON_OVERLAP', severity, entryId: a.e.id, role: a.role, message: msg });
+          issues.push({ code: 'PERSON_OVERLAP', severity, entryId: b.e.id, role: b.role, message: msg });
         }
       }
     }

@@ -45,9 +45,10 @@ export function ActiveBadge({ active }: { active: boolean }) {
 
 export function IssuesPanel({ issues, title = 'Pendências' }: { issues: Issue[]; title?: string }) {
   if (!issues.length) return null;
-  const errors = issues.filter((i) => i.severity === 'error');
-  const incomplete = issues.filter((i) => i.severity === 'incomplete');
-  const warnings = issues.filter((i) => i.severity === 'warning');
+  const uniq = (xs: Issue[]) => xs.filter((x, i) => xs.findIndex((y) => y.message === x.message) === i);
+  const errors = uniq(issues.filter((i) => i.severity === 'error'));
+  const incomplete = uniq(issues.filter((i) => i.severity === 'incomplete'));
+  const warnings = uniq(issues.filter((i) => i.severity === 'warning'));
   return (
     <section className="issues" aria-label={title}>
       {errors.length > 0 && (
@@ -57,16 +58,16 @@ export function IssuesPanel({ issues, title = 'Pendências' }: { issues: Issue[]
         </div>
       )}
       {incomplete.length > 0 && (
-        <div className="alert alert-warn">
-          <strong>Incompleta ({incomplete.length}) — pode salvar como rascunho, mas não confirmar:</strong>
+        <details className="alert alert-warn" open={incomplete.length <= 5}>
+          <summary><strong>Incompleta ({incomplete.length}) — pode salvar como rascunho, mas não confirmar</strong></summary>
           <ul>{incomplete.map((i, k) => <li key={k}>{i.message}</li>)}</ul>
-        </div>
+        </details>
       )}
       {warnings.length > 0 && (
-        <div className="alert alert-info">
-          <strong>Avisos</strong>
+        <details className="alert alert-info">
+          <summary><strong>Avisos ({warnings.length})</strong> — clique para ver</summary>
           <ul>{warnings.map((i, k) => <li key={k}>{i.message}</li>)}</ul>
-        </div>
+        </details>
       )}
     </section>
   );

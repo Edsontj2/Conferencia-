@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getCached } from '../api';
 import { useApp } from '../state';
+import { PageHeader } from '../components/PageHeader';
 import { Empty, Field, fmtDateTime, StatusBadge } from '../components/ui';
 import type { ScheduleMeta } from '../types';
 import type { Entry } from '../../shared/types';
@@ -45,7 +46,7 @@ export function HistoricoPage() {
 
   return (
     <div>
-      <div className="page-head"><h1>Histórico</h1></div>
+      <PageHeader title="Histórico" subtitle="Escalas anteriores e participações, com filtros por data, pessoa, função e linha" />
       <div className="tabs">
         <button className={tab === 'escalas' ? 'active' : ''} onClick={() => setTab('escalas')}>Escalas</button>
         <button className={tab === 'participacoes' ? 'active' : ''} onClick={() => setTab('participacoes')}>Participações</button>
@@ -74,7 +75,7 @@ export function HistoricoPage() {
             <tr key={s.id}>
               <td>{fmtDate(s.saturday)}</td><td>{fmtDate(s.sunday)}</td><td><StatusBadge status={s.status} />{s.cancelReason ? <span className="muted small"> {s.cancelReason}</span> : null}</td>
               <td>{s.entryCount}</td><td>{s.openCount || ''}</td><td className="nowrap">{fmtDateTime(s.updatedAt)}</td>
-              <td className="actions">{s.status !== 'cancelada' && <><Link className="btn btn-sm" to={`/?sabado=${s.saturday}`}>Abrir</Link><Link className="btn btn-sm" to={`/relatorio?sabado=${s.saturday}`}>Relatório</Link></>}</td>
+              <td className="actions">{s.status !== 'cancelada' && <><Link className="btn btn-sm" to={`/escala?sabado=${s.saturday}`}>Abrir</Link><Link className="btn btn-sm" to={`/relatorio?sabado=${s.saturday}`}>Relatório</Link></>}</td>
             </tr>
           ))}</tbody>
         </table></div>
