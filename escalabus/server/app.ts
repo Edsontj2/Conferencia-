@@ -9,7 +9,7 @@ import * as sch from './schedules.js';
 import { HttpError } from './schedules.js';
 import {
   COOKIE, createSession, loginLimit, passwordProblem, sessionFrom, setSessionCookie,
-  verifyPassword, hashPassword, upsertAdmin, type AuthInfo,
+  verifyPassword, hashPassword, upsertAdmin, DEFAULT_ADMIN, type AuthInfo,
 } from './auth.js';
 import { exportBackup, importBackup, validateBackup } from './backup.js';
 import { ensureDemoSeeded, seedDemo } from './demo.js';
@@ -26,7 +26,7 @@ export interface AppOptions {
   staticDir?: string | null;
   /** Aplica os dados reais iniciais (escalas em papel). Desligado nos testes. */
   seedRealData?: boolean;
-  /** Cria este administrador se ainda não houver nenhum. */
+  /** Administrador criado se ainda não houver nenhum usuário (padrão: admin/admin, com aviso para trocar). */
   initialAdmin?: { username: string; password: string } | null;
 }
 
@@ -34,7 +34,11 @@ export interface AppOptions {
 export async function prepareDatabase(opts: AppOptions) {
   await opts.db.tx('real', async (q) => {
     const [r] = await q('SELECT COUNT(*) AS n FROM users');
-    if (toInt(r.n) === 0 && opts.initialAdmin?.password) await upsertAdmin(q, opts.initialAdmin.username, opts.initialAdmin.password);
+    if (toInt(r.n) === 0) {
+      const custom = !!opts.initialAdmin?.password;
+      await upsertAdmin(q, (custom && opts.initialAdmin!.username) || DEFAULT_ADMIN.username,
+        custom ? opts.initialAdmin!.password : DEFAULT_ADMIN.password, { mustChange: !custom, skipCheck: true });
+    }
     if (opts.seedRealData) await applySeeds(q);
   });
   await opts.db.tx('demo', ensureDemoSeeded);
@@ -93,6 +97,7 @@ const idParam = (req: Request) => {
   return n;
 };
 type Authed = Request & { auth: AuthInfo };
+const meOf = (a: AuthInfo) => ({ username: a.username, mode: a.mode, isAdmin: a.isAdmin, mustChange: a.mustChange });
 const A = (req: Request) => req as Authed;
 
 export function createApp(opts: AppOptions) {
@@ -132,10 +137,14 @@ export function createApp(opts: AppOptions) {
     const ip = req.ip ?? 'x';
     const result = await real(async (q) => {
       if (await loginLimit.blocked(q, ip)) return { status: 'blocked' as const };
-      const [u] = await q<{ id: number; username: string; password_hash: string }>('SELECT id, username, password_hash FROM users WHERE lower(username) = lower(?)', [username]);
+      const [u] = await q<{ id: number; username: string; password_hash: string; is_admin: number; must_change: number }>(
+        'SELECT id, username, password_hash, is_admin, must_change FROM users WHERE lower(username) = lower(?)', [username]);
       if (!u || !verifyPassword(password, u.password_hash)) return { status: 'bad' as const };
       await loginLimit.ok(q, ip);
-      return { status: 'ok' as const, username: u.username, token: await createSession(q, Number(u.id)) };
+      return {
+        status: 'ok' as const, username: u.username, isAdmin: Number(u.is_admin) === 1, mustChange: Number(u.must_change) === 1,
+        token: await createSession(q, Number(u.id)),
+      };
     });
     if (result.status === 'blocked') throw new HttpError(429, 'Muitas tentativas. Aguarde 15 minutos.');
     if (result.status === 'bad') {
@@ -143,7 +152,7 @@ export function createApp(opts: AppOptions) {
       throw new HttpError(401, 'Usuário ou senha incorretos.');
     }
     setSessionCookie(res, result.token, secure(req));
-    res.json({ username: result.username, mode: 'real' });
+    res.json({ username: result.username, mode: 'real', isAdmin: result.isAdmin, mustChange: result.mustChange });
   });
 
   app.post('/api/auth/logout', async (req, res) => {
@@ -158,7 +167,7 @@ export function createApp(opts: AppOptions) {
   app.get('/api/auth/me', async (req, res) => {
     const a = await real((q) => sessionFrom(q, req));
     if (!a) { res.status(401).json({ error: 'Não autenticado.' }); return; }
-    res.json({ username: a.username, mode: a.mode });
+    res.json(meOf(a));
   });
 
   app.use('/api', async (req: Request, res: Response, next: NextFunction) => {
@@ -171,7 +180,7 @@ export function createApp(opts: AppOptions) {
   app.post('/api/auth/mode', async (req, res) => {
     const { mode } = parse(z.object({ mode: z.enum(['real', 'demo']) }), req.body);
     await real((q) => q('UPDATE sessions SET mode = ? WHERE token_hash = ?', [mode, A(req).auth.tokenHash]));
-    res.json({ username: A(req).auth.username, mode });
+    res.json({ ...meOf(A(req).auth), mode });
   });
 
   app.post('/api/auth/password', async (req, res) => {
@@ -181,8 +190,69 @@ export function createApp(opts: AppOptions) {
     await real(async (q) => {
       const [u] = await q<{ password_hash: string }>('SELECT password_hash FROM users WHERE id = ?', [A(req).auth.userId]);
       if (!verifyPassword(current, u.password_hash)) throw new HttpError(400, 'Senha atual incorreta.');
-      await q('UPDATE users SET password_hash = ? WHERE id = ?', [hashPassword(next), A(req).auth.userId]);
+      if (verifyPassword(next, u.password_hash)) throw new HttpError(400, 'A nova senha precisa ser diferente da atual.');
+      await q('UPDATE users SET password_hash = ?, must_change = 0 WHERE id = ?', [hashPassword(next), A(req).auth.userId]);
       await q('DELETE FROM sessions WHERE user_id = ? AND token_hash <> ?', [A(req).auth.userId, A(req).auth.tokenHash]);
+    });
+    res.json({ ok: true });
+  });
+
+  /* ---------- usuários e acessos (somente administradores) ---------- */
+  const adminOnly = (req: Request) => { if (!A(req).auth.isAdmin) throw new HttpError(403, 'Somente administradores podem gerenciar usuários.'); };
+  const usernameIn = z.string().trim().min(3, 'O login precisa ter pelo menos 3 caracteres.').max(40)
+    .regex(/^[a-zA-Z0-9._-]+$/, 'Use no login apenas letras, números, ponto, hífen ou sublinhado (sem espaços).');
+  const countAdmins = async (q: Q) => toInt((await q('SELECT COUNT(*) AS n FROM users WHERE is_admin = 1'))[0].n);
+
+  app.get('/api/users', async (req, res) => {
+    adminOnly(req);
+    const rows = await real((q) => q<{ id: number; username: string; is_admin: number; must_change: number; created_at: string }>(
+      'SELECT id, username, is_admin, must_change, created_at FROM users ORDER BY lower(username)'));
+    res.json(rows.map((r) => ({ id: Number(r.id), username: r.username, isAdmin: Number(r.is_admin) === 1, mustChange: Number(r.must_change) === 1, createdAt: r.created_at, self: Number(r.id) === A(req).auth.userId })));
+  });
+
+  app.post('/api/users', async (req, res) => {
+    adminOnly(req);
+    const b = parse(z.object({ username: usernameIn, password: z.string(), isAdmin: z.boolean() }), req.body);
+    const p = passwordProblem(b.password);
+    if (p) throw new HttpError(400, p);
+    const id = await unique(real((q) => one(q('INSERT INTO users (username, password_hash, created_at, is_admin, must_change) VALUES (?, ?, ?, ?, 0) RETURNING id',
+      [b.username, hashPassword(b.password), nowIso(), b.isAdmin ? 1 : 0]))), 'Já existe um usuário com esse login.');
+    res.status(201).json({ id });
+  });
+
+  app.put('/api/users/:id', async (req, res) => {
+    adminOnly(req);
+    const id = idParam(req);
+    const b = parse(z.object({ isAdmin: z.boolean() }), req.body);
+    await real(async (q) => {
+      if (!b.isAdmin && id === A(req).auth.userId) throw new HttpError(400, 'Você não pode remover o seu próprio acesso de administrador.');
+      await changed(q('UPDATE users SET is_admin = ? WHERE id = ? RETURNING id', [b.isAdmin ? 1 : 0, id]), 'Usuário não encontrado.');
+      if (await countAdmins(q) === 0) throw new HttpError(400, 'É preciso manter pelo menos um administrador.');
+    });
+    res.json({ ok: true });
+  });
+
+  app.post('/api/users/:id/password', async (req, res) => {
+    adminOnly(req);
+    const id = idParam(req);
+    const b = parse(z.object({ password: z.string() }), req.body);
+    const p = passwordProblem(b.password);
+    if (p) throw new HttpError(400, p);
+    await real(async (q) => {
+      await changed(q('UPDATE users SET password_hash = ?, must_change = 0 WHERE id = ? RETURNING id', [hashPassword(b.password), id]), 'Usuário não encontrado.');
+      // encerra as sessões do usuário (exceto a sessão atual, se for a própria conta)
+      await q('DELETE FROM sessions WHERE user_id = ? AND token_hash <> ?', [id, A(req).auth.tokenHash]);
+    });
+    res.json({ ok: true });
+  });
+
+  app.delete('/api/users/:id', async (req, res) => {
+    adminOnly(req);
+    const id = idParam(req);
+    if (id === A(req).auth.userId) throw new HttpError(400, 'Você não pode excluir o seu próprio usuário.');
+    await real(async (q) => {
+      await changed(q('DELETE FROM users WHERE id = ? RETURNING id', [id]), 'Usuário não encontrado.');
+      if (await countAdmins(q) === 0) throw new HttpError(400, 'É preciso manter pelo menos um administrador.');
     });
     res.json({ ok: true });
   });

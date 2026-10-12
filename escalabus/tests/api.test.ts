@@ -239,3 +239,50 @@ describe('dados reais importados da escala em papel', () => {
     await d.close();
   }, 30000);
 });
+
+describe('usuários e acessos', () => {
+  it('sem usuários, cria admin/admin com aviso; troca de senha remove o aviso', async () => {
+    const d = await openDatabase();
+    const opts = { db: d, secureCookies: false, seedRealData: false, initialAdmin: { username: 'admin', password: '' } };
+    await prepareDatabase(opts);
+    const a = request.agent(createApp(opts));
+    const login = (await a.post('/api/auth/login').set(H).send({ username: 'admin', password: 'admin' }).expect(200)).body;
+    expect(login).toMatchObject({ isAdmin: true, mustChange: true });
+    await a.post('/api/auth/password').set(H).send({ current: 'admin', next: 'admin' }).expect(400);
+    await a.post('/api/auth/password').set(H).send({ current: 'admin', next: 'nova-senha' }).expect(200);
+    expect((await a.get('/api/auth/me')).body.mustChange).toBe(false);
+    await prepareDatabase(opts); // não recria nem redefine o admin
+    await request(createApp(opts)).post('/api/auth/login').set(H).send({ username: 'admin', password: 'admin' }).expect(401);
+    await d.close();
+  });
+
+  it('administrador cria, redefine senha, muda tipo e exclui acessos; operador não gerencia', async () => {
+    await setup();
+    const app = createApp({ db });
+    await post('/api/users', { username: 'maria', password: '123', isAdmin: false }).expect(400);
+    await post('/api/users', { username: 'maria silva', password: '123456', isAdmin: false }).expect(400);
+    const { id } = (await post('/api/users', { username: 'maria', password: '123456', isAdmin: false }).expect(201)).body;
+    await post('/api/users', { username: 'MARIA', password: '123456', isAdmin: false }).expect(409);
+    const list = (await agent.get('/api/users').expect(200)).body;
+    expect(list.map((u: { username: string }) => u.username)).toEqual(['admin', 'maria']);
+
+    const op = request.agent(app);
+    const r = (await op.post('/api/auth/login').set(H).send({ username: 'maria', password: '123456' }).expect(200)).body;
+    expect(r.isAdmin).toBe(false);
+    await op.get('/api/catalog').expect(200);
+    await op.get('/api/users').expect(403);
+    await op.post('/api/users').set(H).send({ username: 'x', password: '123456', isAdmin: true }).expect(403);
+
+    await post(`/api/users/${id}/password`, { password: 'outra-senha' }).expect(200);
+    await op.get('/api/catalog').expect(401); // sessão encerrada
+    await request(app).post('/api/auth/login').set(H).send({ username: 'maria', password: 'outra-senha' }).expect(200);
+
+    await put(`/api/users/${id}`, { isAdmin: true }).expect(200);
+    const me = list.find((u: { username: string }) => u.username === 'admin');
+    await put(`/api/users/${me.id}`, { isAdmin: false }).expect(400); // não remove o próprio acesso
+    await agent.delete(`/api/users/${me.id}`).set(H).expect(400); // não exclui a si mesmo
+    await agent.delete(`/api/users/${id}`).set(H).expect(200);
+    expect((await agent.get('/api/users')).body).toHaveLength(1);
+    await db.close();
+  });
+});

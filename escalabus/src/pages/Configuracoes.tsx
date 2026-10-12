@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { send } from '../api';
+import { useEffect, useState } from 'react';
+import { get, send } from '../api';
 import { useApp } from '../state';
-import { Empty, Field, Modal } from '../components/ui';
+import { Empty, Field, fmtDateTime, Modal } from '../components/ui';
 import { InstallButton, IosInstructions } from '../components/InstallButton';
 import { SimpleForm } from './Linhas';
 import type { Recipient } from '../../shared/types';
@@ -10,7 +10,7 @@ import { formatPhone, phoneProblem } from '../../shared/whatsapp';
 interface BackupCheck { ok: boolean; errors: string[]; counts: Record<string, number>; exportedAt?: string; mode?: string }
 
 export function ConfiguracoesPage() {
-  const { catalog, reloadCatalog, toast, online, me, switchMode } = useApp();
+  const { catalog, reloadCatalog, toast, online, me, switchMode, refreshMe } = useApp();
   const [company, setCompany] = useState<string | null>(null);
   const [limit, setLimit] = useState<number | null>(null);
   const [rec, setRec] = useState<Partial<Recipient> | null>(null);
@@ -97,16 +97,24 @@ export function ConfiguracoesPage() {
         <p className="muted small">Instalado ou não, a última escala e os cadastros carregados ficam disponíveis para consulta sem internet. Alterações exigem conexão com o servidor.</p>
       </section>
 
-      <section className="card">
-        <h2>Alterar senha do administrador</h2>
+      {me?.isAdmin && <UsersSection />}
+
+      <section className="card" id="minha-senha">
+        <h2>Minha senha ({me?.username})</h2>
+        {me?.mustChange && <div className="alert alert-warn">Você ainda está com a senha padrão. Defina uma senha nova.</div>}
         <div className="form-grid three">
           <Field label="Senha atual"><input type="password" autoComplete="current-password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} /></Field>
-          <Field label="Nova senha (mín. 8)"><input type="password" autoComplete="new-password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} /></Field>
+          <Field label="Nova senha (mín. 6)"><input type="password" autoComplete="new-password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} /></Field>
           <Field label="Repita a nova senha" error={pw.again && pw.again !== pw.next ? 'Não confere.' : null}><input type="password" autoComplete="new-password" value={pw.again} onChange={(e) => setPw({ ...pw, again: e.target.value })} /></Field>
         </div>
-        <button className="btn" disabled={!online || !pw.current || pw.next.length < 8 || pw.next !== pw.again} onClick={async () => {
-          try { await send('POST', '/api/auth/password', { current: pw.current, next: pw.next }); setPw({ current: '', next: '', again: '' }); toast('Senha alterada. Outras sessões foram encerradas.'); } catch (e) { toast((e as Error).message, 'err'); }
-        }}>Alterar senha</button>
+        <button className="btn btn-primary" disabled={!online || !pw.current || pw.next.length < 6 || pw.next !== pw.again} onClick={async () => {
+          try {
+            await send('POST', '/api/auth/password', { current: pw.current, next: pw.next });
+            setPw({ current: '', next: '', again: '' });
+            await refreshMe();
+            toast('Senha alterada. Outras sessões foram encerradas.');
+          } catch (e) { toast((e as Error).message, 'err'); }
+        }}>Alterar minha senha</button>
       </section>
 
       {rec && (
@@ -160,5 +168,69 @@ function ImportDialog({ imp, onClose, onDone }: { imp: { data: unknown; check: B
         <Field label='Digite SUBSTITUIR para confirmar'><input value={typed} onChange={(e) => setTyped(e.target.value)} /></Field>
       </>}
     </Modal>
+  );
+}
+
+interface UserRow { id: number; username: string; isAdmin: boolean; mustChange: boolean; createdAt: string; self: boolean }
+
+/** Painel de acessos: o administrador cria logins, redefine senhas, define quem é administrador e exclui acessos. */
+function UsersSection() {
+  const { toast, online } = useApp();
+  const [users, setUsers] = useState<UserRow[] | null>(null);
+  const [form, setForm] = useState({ username: '', password: '', isAdmin: false });
+  const [resetFor, setResetFor] = useState<UserRow | null>(null);
+  const [newPw, setNewPw] = useState('');
+  const load = async () => { try { setUsers(await get<UserRow[]>('/api/users')); } catch (e) { toast((e as Error).message, 'err'); } };
+  useEffect(() => { void load(); }, []); // eslint-disable-line
+  const act = async (fn: () => Promise<unknown>, ok: string) => {
+    try { await fn(); toast(ok); await load(); } catch (e) { toast((e as Error).message, 'err'); }
+  };
+  return (
+    <section className="card">
+      <h2>Usuários e acessos</h2>
+      <p className="muted small">Crie um login e senha para cada pessoa que vai usar o sistema. <strong>Administrador</strong> também pode gerenciar os acessos; <strong>Operador</strong> usa todo o resto (escalas, cadastros, relatórios).</p>
+      <div className="form-grid three">
+        <Field label="Login"><input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value.trim() })} autoComplete="off" autoCapitalize="none" placeholder="ex.: maria" /></Field>
+        <Field label="Senha (mín. 6)"><input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} autoComplete="new-password" /></Field>
+        <Field label="Tipo de acesso">
+          <select value={form.isAdmin ? 'admin' : 'op'} onChange={(e) => setForm({ ...form, isAdmin: e.target.value === 'admin' })}>
+            <option value="op">Operador</option><option value="admin">Administrador</option>
+          </select>
+        </Field>
+      </div>
+      <div className="actionbar">
+        <button className="btn btn-primary" disabled={!online || form.username.length < 3 || form.password.length < 6}
+          onClick={() => void act(async () => { await send('POST', '/api/users', form); setForm({ username: '', password: '', isAdmin: false }); }, 'Acesso criado.')}>+ Criar acesso</button>
+      </div>
+      {!users ? <p>Carregando…</p> : (
+        <div className="table-wrap"><table className="table">
+          <thead><tr><th>Login</th><th>Tipo</th><th>Criado em</th><th></th></tr></thead>
+          <tbody>{users.map((u) => (
+            <tr key={u.id}>
+              <td className="strong">{u.username}{u.self ? ' (você)' : ''}{u.mustChange ? <span className="badge badge-rascunho" style={{ marginLeft: 6 }}>senha padrão</span> : null}</td>
+              <td>{u.isAdmin ? 'Administrador' : 'Operador'}</td>
+              <td className="nowrap">{fmtDateTime(u.createdAt)}</td>
+              <td className="actions">
+                <button className="btn btn-sm" disabled={!online} onClick={() => { setResetFor(u); setNewPw(''); }}>Redefinir senha</button>
+                {!u.self && <button className="btn btn-sm" disabled={!online} onClick={() => void act(() => send('PUT', `/api/users/${u.id}`, { isAdmin: !u.isAdmin }), 'Tipo de acesso alterado.')}>{u.isAdmin ? 'Tornar operador' : 'Tornar administrador'}</button>}
+                {!u.self && <button className="btn btn-sm btn-danger-ghost" disabled={!online} onClick={() => { if (confirm(`Excluir o acesso "${u.username}"?`)) void act(() => send('DELETE', `/api/users/${u.id}`), 'Acesso excluído.'); }}>Excluir</button>}
+              </td>
+            </tr>
+          ))}</tbody>
+        </table></div>
+      )}
+      {resetFor && (
+        <Modal title={`Nova senha para ${resetFor.username}`} onClose={() => setResetFor(null)} footer={<>
+          <button className="btn" onClick={() => setResetFor(null)}>Cancelar</button>
+          <button className="btn btn-primary" disabled={newPw.length < 6 || !online} onClick={() => {
+            const u = resetFor; setResetFor(null);
+            void act(() => send('POST', `/api/users/${u.id}/password`, { password: newPw }), `Senha de ${u.username} redefinida.`);
+          }}>Salvar senha</button>
+        </>}>
+          <Field label="Nova senha (mín. 6)"><input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} autoComplete="new-password" /></Field>
+          <p className="muted small">As sessões abertas desse usuário em outros aparelhos serão encerradas.</p>
+        </Modal>
+      )}
+    </section>
   );
 }

@@ -21,21 +21,28 @@ export function verifyPassword(pw: string, stored: string): boolean {
   return crypto.timingSafeEqual(expected, got);
 }
 
+export const MIN_PASSWORD = 6;
 export function passwordProblem(pw: string): string | null {
-  return pw.length < 8 ? 'A senha precisa ter pelo menos 8 caracteres.' : null;
+  return pw.length < MIN_PASSWORD ? `A senha precisa ter pelo menos ${MIN_PASSWORD} caracteres.` : null;
 }
 
-/** q deve estar no schema real. */
-export async function upsertAdmin(q: Q, username: string, password: string) {
-  const p = passwordProblem(password);
+export const DEFAULT_ADMIN = { username: 'admin', password: 'admin' };
+
+/**
+ * Cria ou redefine um administrador (q no schema real).
+ * `mustChange` marca a senha como provisória (ex.: admin/admin padrão), exibindo aviso até ser trocada.
+ */
+export async function upsertAdmin(q: Q, username: string, password: string, opts: { mustChange?: boolean; skipCheck?: boolean } = {}) {
+  const p = opts.skipCheck ? null : passwordProblem(password);
   if (p) throw new Error(p);
   const h = hashPassword(password);
+  const mc = opts.mustChange ? 1 : 0;
   const [ex] = await q<{ id: number }>('SELECT id FROM users WHERE lower(username) = lower(?)', [username]);
   if (ex) {
-    await q('UPDATE users SET password_hash = ? WHERE id = ?', [h, ex.id]);
+    await q('UPDATE users SET password_hash = ?, is_admin = 1, must_change = ? WHERE id = ?', [h, mc, ex.id]);
     await q('DELETE FROM sessions WHERE user_id = ?', [ex.id]);
   } else {
-    await q('INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)', [username, h, nowIso()]);
+    await q('INSERT INTO users (username, password_hash, created_at, is_admin, must_change) VALUES (?, ?, ?, 1, ?)', [username, h, nowIso(), mc]);
   }
 }
 
@@ -59,15 +66,19 @@ export function readCookie(req: Request, name: string): string | null {
   return null;
 }
 
-export interface AuthInfo { userId: number; username: string; mode: 'real' | 'demo'; tokenHash: string }
+export interface AuthInfo { userId: number; username: string; mode: 'real' | 'demo'; tokenHash: string; isAdmin: boolean; mustChange: boolean }
 
 export async function sessionFrom(q: Q, req: Request): Promise<AuthInfo | null> {
   const tok = readCookie(req, COOKIE);
   if (!tok) return null;
-  const [r] = await q<{ token_hash: string; mode: 'real' | 'demo'; expires_at: string; id: number; username: string }>(
-    'SELECT s.token_hash, s.mode, s.expires_at, u.id, u.username FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?', [sha(tok)]);
+  const [r] = await q<{ token_hash: string; mode: 'real' | 'demo'; expires_at: string; id: number; username: string; is_admin: number; must_change: number }>(
+    `SELECT s.token_hash, s.mode, s.expires_at, u.id, u.username, u.is_admin, u.must_change
+     FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?`, [sha(tok)]);
   if (!r || r.expires_at < nowIso()) return null;
-  return { userId: Number(r.id), username: r.username, mode: r.mode, tokenHash: r.token_hash };
+  return {
+    userId: Number(r.id), username: r.username, mode: r.mode, tokenHash: r.token_hash,
+    isAdmin: Number(r.is_admin) === 1, mustChange: Number(r.must_change) === 1,
+  };
 }
 
 export function setSessionCookie(res: Response, token: string, secure: boolean) {

@@ -21,7 +21,7 @@ export function LoginPage() {
         <Field label="Senha"><input type="password" value={p} onChange={(e) => setP(e.target.value)} autoComplete="current-password" required /></Field>
         {err && <div className="alert alert-err">{err}</div>}
         <button className="btn btn-primary btn-block" disabled={busy || !online}>Entrar</button>
-        <p className="muted small">Acesso restrito ao administrador. O modo demonstração (dados fictícios) fica disponível após entrar, em Configurações.</p>
+        <p className="muted small">Acesso restrito. Peça seu login ao administrador. O modo demonstração (dados fictícios) fica disponível após entrar, em Configurações.</p>
         <InstallButton />
       </form>
     </div>

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { ApiError, clearCache, get, getCached, isOnline, onOnlineChange, send, setCacheScope } from './api';
 import type { Catalog } from './types';
 
-export interface Me { username: string; mode: 'real' | 'demo' }
+export interface Me { username: string; mode: 'real' | 'demo'; isAdmin?: boolean; mustChange?: boolean }
 
 interface AppState {
   me: Me | null;
@@ -15,6 +15,7 @@ interface AppState {
   login: (u: string, p: string) => Promise<void>;
   logout: () => Promise<void>;
   switchMode: (m: 'real' | 'demo') => Promise<void>;
+  refreshMe: () => Promise<void>;
   toast: (msg: string, kind?: 'ok' | 'err') => void;
 }
 
@@ -79,6 +80,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try { await send('POST', '/api/auth/logout'); } finally { clearCache(); applyMe(null); }
     },
     switchMode: async (m) => { applyMe(await send<Me>('POST', '/api/auth/mode', { mode: m })); },
+    refreshMe: async () => { applyMe(await get<Me>('/api/auth/me')); },
   };
 
   return (
