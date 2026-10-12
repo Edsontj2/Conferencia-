@@ -134,3 +134,16 @@ describe('histórico ausente', () => {
     expect(canConfirm(issues)).toBe(true);
   });
 });
+
+describe('sobreposição herdada da versão salva', () => {
+  it('vira aviso quando já existia; volta a ser erro se a edição criar outra', () => {
+    const e = [
+      entry(SAT, '05:50', '13:15', { driverId: 1, conductorId: 2, busId: 1 }),
+      entry(SAT, '13:12', '20:20', { driverId: 3, conductorId: 2, busId: 2 }),
+    ];
+    const c = ctx(P, [], { settings: { maxServicesPerDay: 2 }, baseline: e });
+    expect(validateSchedule(e, c).find((i) => i.code === 'PERSON_OVERLAP')?.severity).toBe('warning');
+    const changed = [e[0], { ...e[1], startTime: '13:00' }];
+    expect(validateSchedule(changed, c).find((i) => i.code === 'PERSON_OVERLAP')?.severity).toBe('error');
+  });
+});

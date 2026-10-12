@@ -4,10 +4,17 @@ import { nowIso } from './db.js';
 import * as repo from './repo.js';
 import { SEED_DAYS, type SeedDay } from './seed-data.js';
 import { validateSchedule, buildContextMaps } from '../shared/rules.js';
-import { absInterval, dateToDay, weekdayOf, weekendSaturdayOf } from '../shared/time.js';
+import { weekdayOf, weekendSaturdayOf } from '../shared/time.js';
 import type { Entry } from '../shared/types.js';
 
-const hm = (min: number) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+/** Janela de disponibilidade padrão por turno (ajustável depois em Pessoas). */
+const SHIFT_WINDOWS: Record<string, [string, string]> = { 'Manhã': ['05:00', '16:00'], 'Tarde': ['11:00', '01:00'] };
+const sortShifts = (s: Set<string>) => [...s].sort((a, b) => (a === 'Manhã' ? -1 : b === 'Manhã' ? 1 : a.localeCompare(b)));
+export function shiftWindow(shifts: Set<string>): { start: string; end: string } {
+  const ws = [...shifts].map((x) => SHIFT_WINDOWS[x]).filter(Boolean);
+  if (!ws.length) return { start: '00:00', end: '00:00' };
+  return { start: ws.map((w) => w[0]).sort()[0], end: ws.some((w) => w[1] < w[0]) ? ws.find((w) => w[1] < w[0])![1] : ws.map((w) => w[1]).sort().reverse()[0] };
+}
 
 /** Aplica os lotes de dados reais ainda não aplicados (q no schema real). */
 export async function applySeeds(q: Q) {
@@ -16,6 +23,21 @@ export async function applySeeds(q: Q) {
     if (done) continue;
     await applyDay(q, day);
     await q('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)', [day.name, nowIso()]);
+  }
+  // Ajuste único: a primeira importação usava só o horário trabalhado no dia como disponibilidade (estreito demais).
+  const FIX = 'seed_turnos_padrao_v1';
+  if (!(await q('SELECT 1 FROM schema_migrations WHERE version = ?', [FIX])).length) {
+    const seeded = new Map<string, Set<string>>();
+    for (const d of SEED_DAYS) for (const sec of d.sections) for (const r of sec.rows) {
+      for (const k of [`motorista|${r.motorista}`, `cobrador|${r.cobrador}`]) seeded.set(k, (seeded.get(k) ?? new Set()).add(sec.shift));
+    }
+    for (const [k, shifts] of seeded) {
+      const [role, name] = k.split('|');
+      const w = shiftWindow(shifts);
+      await q('UPDATE people SET avail_start = ?, avail_end = ?, shift_name = ?, updated_at = ? WHERE lower(name) = lower(?) AND role = ?',
+        [w.start, w.end, sortShifts(shifts).join(' e '), nowIso(), name, role]);
+    }
+    await q('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)', [FIX, nowIso()]);
   }
 }
 
@@ -45,28 +67,30 @@ async function applyDay(q: Q, day: SeedDay) {
     busId.set(fleet, ex ? ex.id : (await q<{ id: number }>(`INSERT INTO buses (fleet_number, plate, active, created_at, updated_at) VALUES (?, '', 1, ?, ?) RETURNING id`, [fleet, now, now]))[0].id);
   }
 
-  // Pessoas: disponibilidade = do primeiro início ao último término do dia (arredondado à hora cheia)
-  const people = new Map<string, { role: 'motorista' | 'cobrador'; s: number; e: number; shifts: Set<string> }>();
+  // Pessoas: disponibilidade = janela padrão dos turnos em que trabalham (Manhã, Tarde ou os dois)
+  const people = new Map<string, { role: 'motorista' | 'cobrador'; shifts: Set<string> }>();
   for (const r of rows) {
-    const iv = absInterval(day.date, r.hora, r.rend);
-    const base = dateToDay(day.date) * 1440;
     for (const [name, role] of [[r.motorista, 'motorista'], [r.cobrador, 'cobrador']] as const) {
       const k = `${role}|${name}`;
-      const p = people.get(k) ?? { role, s: Infinity, e: -Infinity, shifts: new Set<string>() };
-      p.s = Math.min(p.s, iv.s - base); p.e = Math.max(p.e, iv.e - base); p.shifts.add(r.shift);
+      const p = people.get(k) ?? { role, shifts: new Set<string>() };
+      p.shifts.add(r.shift);
       people.set(k, p);
     }
   }
   const personId = new Map<string, number>();
   for (const [k, p] of people) {
     const name = k.split('|')[1];
-    const [ex] = await q<{ id: number }>('SELECT id FROM people WHERE lower(name) = lower(?) AND role = ?', [name, p.role]);
-    if (ex) { personId.set(k, ex.id); continue; }
-    const start = Math.floor(p.s / 60) * 60;
-    const end = Math.min(Math.ceil(p.e / 60) * 60, start + 1440 - 60);
-    const shiftName = [...p.shifts].join(' e ');
+    const [ex] = await q<{ id: number; shift_name: string }>('SELECT id, shift_name FROM people WHERE lower(name) = lower(?) AND role = ?', [name, p.role]);
+    const shifts = new Set([...(ex ? ex.shift_name.split(' e ') : []), ...p.shifts]);
+    const w = shiftWindow(shifts);
+    const shiftName = sortShifts(shifts).join(' e ');
+    if (ex) {
+      await q('UPDATE people SET avail_start = ?, avail_end = ?, shift_name = ?, updated_at = ? WHERE id = ?', [w.start, w.end, shiftName, now, ex.id]);
+      personId.set(k, ex.id);
+      continue;
+    }
     const [{ id }] = await q<{ id: number }>(`INSERT INTO people (name, role, shift_name, avail_start, avail_end, whatsapp, active, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, NULL, 1, ?, ?) RETURNING id`, [name, p.role, shiftName, hm(start), hm(end), now, now]);
+      VALUES (?, ?, ?, ?, ?, NULL, 1, ?, ?) RETURNING id`, [name, p.role, shiftName, w.start, w.end, now, now]);
     personId.set(k, id);
   }
 
@@ -96,8 +120,11 @@ async function applyDay(q: Q, day: SeedDay) {
     saturday, ...buildContextMaps(await repo.listPeople(q), await repo.listLines(q), await repo.listBuses(q)),
     otherConfirmed: [], settings: await repo.getSettings(q),
   };
+  // A escala em papel é o registro real: sobreposições de poucos minutos (rendição) são mantidas e avisadas no log.
   const errors = validateSchedule(all, ctx).filter((i) => i.severity === 'error');
-  if (errors.length) throw new Error(`Dados de ${day.date} inválidos: ${errors.map((e) => e.message).join(' | ')}`);
+  const blocking = errors.filter((e) => e.code !== 'PERSON_OVERLAP');
+  if (blocking.length) throw new Error(`Dados de ${day.date} inválidos: ${blocking.map((e) => e.message).join(' | ')}`);
+  if (errors.length) console.warn(`[seed ${day.date}] mantido como na escala em papel: ${[...new Set(errors.map((e) => e.message))].join(' | ')}`);
   if (!sched) {
     const [{ id }] = await q<{ id: number }>(`INSERT INTO schedules (saturday, status, version, notes, created_at, updated_at, confirmed_at)
       VALUES (?, 'confirmada', 1, 'Importada da escala em papel', ?, ?, ?) RETURNING id`, [saturday, now, now, now]);

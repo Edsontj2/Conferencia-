@@ -222,19 +222,27 @@ describe('dados reais importados da escala em papel', () => {
     await a.post('/api/auth/login').set(H).send({ username: 'admin', password: 'senha-segura-123' }).expect(200);
     const cat = (await a.get('/api/catalog')).body;
     expect(cat.lines.map((l: { code: string }) => l.code).sort()).toEqual(['0.782', '0.783', '141.1', '141.2', '141.5', '141.6', '141.7', '141.8', '141.9', '782.1', '783.1', '783.2', '783.3']);
-    expect(cat.services).toHaveLength(54);
+    expect(cat.services.filter((s: { weekday: number }) => s.weekday === 0)).toHaveLength(54);
+    expect(cat.services.filter((s: { weekday: number }) => s.weekday === 6)).toHaveLength(58);
     expect(cat.services.filter((s: { busId: number | null }) => s.busId == null)).toHaveLength(3);
+    expect(cat.buses.map((b: { fleetNumber: string }) => b.fleetNumber)).toEqual(expect.arrayContaining(['541800', '541711', '541583', '541613', '541591', '541621']));
     expect(cat.settings.maxServicesPerDay).toBe(2);
     const lauro = cat.people.filter((p: { name: string }) => p.name === 'LAURO NETO');
     expect(lauro).toHaveLength(1);
-    expect(lauro[0]).toMatchObject({ role: 'motorista', availStart: '05:00', availEnd: '22:00' });
+    expect(lauro[0]).toMatchObject({ role: 'motorista', availStart: '05:00', availEnd: '01:00', shiftName: 'Manhã e Tarde' });
     const w = (await a.get('/api/weekend/2026-10-10')).body;
     expect(w.schedule.status).toBe('confirmada');
-    expect(w.schedule.entries).toHaveLength(54);
+    expect(w.schedule.entries.filter((e: Entry) => e.date === '2026-10-11')).toHaveLength(54);
+    expect(w.schedule.entries.filter((e: Entry) => e.date === '2026-10-10')).toHaveLength(58);
+    // única divergência da escala em papel: MARCOS FRANCISCO 05:50–13:15 e 13:12–20:20 (3 min)
+    // vem da versão salva, então aparece como aviso e não impede editar o resto da escala
     expect(w.issues.filter((i: { severity: string }) => i.severity === 'error')).toEqual([]);
+    const ov = w.issues.filter((i: { code: string }) => i.code === 'PERSON_OVERLAP');
+    expect(ov.length).toBeGreaterThan(0);
+    expect(ov.every((i: { message: string; severity: string }) => i.message.includes('MARCOS FRANCISCO') && i.severity === 'warning')).toBe(true);
     // domingo seguinte: quem trabalhou em 11/10 fica bloqueado
     const g = (await a.post('/api/schedules/generate').set(H).send({ saturday: '2026-10-17', seed: 1 })).body;
-    const worked = new Set(w.schedule.entries.flatMap((e: Entry) => [e.driverId, e.conductorId]));
+    const worked = new Set(w.schedule.entries.filter((e: Entry) => e.date === '2026-10-11').flatMap((e: Entry) => [e.driverId, e.conductorId]));
     expect(g.entries.filter((e: Entry) => e.date === '2026-10-18').some((e: Entry) => worked.has(e.driverId) || worked.has(e.conductorId))).toBe(false);
     await d.close();
   }, 30000);

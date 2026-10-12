@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getCached, recallLast } from '../api';
 import { useApp } from '../state';
+import { PageHeader } from '../components/PageHeader';
 import { Empty, Field, fmtDateTime, StatusBadge } from '../components/ui';
 import { PersonWhatsAppDialog, WhatsAppDialog } from '../components/WhatsAppDialog';
 import { buildPdf, pdfFileName } from '../pdf';
@@ -48,7 +49,7 @@ export function RelatorioPage() {
 
   return (
     <div>
-      <div className="page-head no-print"><h1>Relatório</h1></div>
+      <div className="no-print"><PageHeader title="Relatórios" subtitle="Escala para impressão, PDF A4 e envio pelo WhatsApp" /></div>
       <div className="toolbar card no-print">
         <div className="weekend-picker">
           <button className="btn btn-sm" onClick={() => setSaturday(addDays(saturday, -7))}>◀</button>
@@ -65,7 +66,7 @@ export function RelatorioPage() {
         {fromCache && <span className="muted small">Cópia offline de {fmtDateTime(savedAt)}</span>}
       </div>
       {err && <div className="alert alert-err no-print">{err}</div>}
-      {data && !schedule && <Empty>Não há escala salva para este fim de semana. <Link to={`/?sabado=${saturday}`}>Ir para a escala</Link></Empty>}
+      {data && !schedule && <Empty>Não há escala salva para este fim de semana. <Link to={`/escala?sabado=${saturday}`}>Ir para a escala</Link></Empty>}
       {schedule && (
         <>
           <div className="actionbar no-print">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { get, send } from '../api';
 import { useApp } from '../state';
+import { PageHeader } from '../components/PageHeader';
 import { Empty, Field, fmtDateTime, Modal } from '../components/ui';
 import { InstallButton, IosInstructions } from '../components/InstallButton';
 import { SimpleForm } from './Linhas';
@@ -39,7 +40,7 @@ export function ConfiguracoesPage() {
 
   return (
     <div>
-      <div className="page-head"><h1>Configurações</h1></div>
+      <PageHeader title="Configurações" subtitle="Empresa, usuários e acessos, WhatsApp, backup e senha" />
 
       <section className="card">
         <h2>Geral</h2>

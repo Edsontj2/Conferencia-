@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { send } from '../api';
 import { useApp } from '../state';
+import { Icon } from '../components/Icons';
+import { IconAction, PageHeader } from '../components/PageHeader';
 import { ActiveBadge, Empty, Field, Modal } from '../components/ui';
 import type { Bus, Line } from '../../shared/types';
 
@@ -19,26 +21,29 @@ export function LinhasPage() {
   };
   return (
     <div>
-      <div className="page-head"><h1>Linhas</h1><button className="btn btn-primary" disabled={!online} onClick={() => setEdit({ code: '', description: '', active: true })}>+ Nova linha</button></div>
-      <div className="filters"><input type="search" placeholder="Pesquisar código ou itinerário" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+      <PageHeader title="Linhas de Ônibus" subtitle="Códigos e itinerários das linhas"
+        right={<button className="btn btn-primary" disabled={!online} onClick={() => setEdit({ code: '', description: '', active: true })}><Icon.plus /> Nova Linha</button>} />
+      <div className="panel">
+      <div className="filters"><label className="search"><Icon.search /><input type="search" placeholder="Buscar código ou itinerário…" value={q} onChange={(e) => setQ(e.target.value)} /></label></div>
       {list.length === 0 ? <Empty>Nenhuma linha cadastrada.</Empty> : (
         <div className="table-wrap"><table className="table">
-          <thead><tr><th>Código</th><th>Descrição / itinerário</th><th>Situação</th><th>Uso em escalas</th><th></th></tr></thead>
+          <thead><tr><th>Linha</th><th>Descrição</th><th>Situação</th><th>Uso em escalas</th><th className="c">Ações</th></tr></thead>
           <tbody>{list.map((l) => {
             const used = catalog.usage.lines[l.id] ?? 0;
             return (
               <tr key={l.id} className={l.active ? '' : 'row-off'}>
                 <td className="strong">{l.code}</td><td>{l.description}</td><td><ActiveBadge active={l.active} /></td><td>{used}</td>
-                <td className="actions">
-                  <button className="btn btn-sm" disabled={!online} onClick={() => setEdit(l)}>Editar</button>
-                  <button className="btn btn-sm" disabled={!online} onClick={() => void act(() => send('PUT', `/api/lines/${l.id}`, { ...l, active: !l.active }), 'Situação alterada.')}>{l.active ? 'Inativar' : 'Reativar'}</button>
-                  {used === 0 && <button className="btn btn-sm btn-danger-ghost" disabled={!online} onClick={() => { if (confirm(`Excluir a linha ${l.code}?`)) void act(() => send('DELETE', `/api/lines/${l.id}`), 'Linha excluída.'); }}>Excluir</button>}
-                </td>
+                <td className="c"><span className="row-actions">
+                  <IconAction title="Editar" disabled={!online} onClick={() => setEdit(l)}><Icon.edit /></IconAction>
+                  <IconAction kind="neutral" title={l.active ? 'Inativar' : 'Reativar'} disabled={!online} onClick={() => void act(() => send('PUT', `/api/lines/${l.id}`, { ...l, active: !l.active }), 'Situação alterada.')}><Icon.power /></IconAction>
+                  <IconAction kind="danger" title={used ? 'Já usada em escalas: inative em vez de excluir' : 'Excluir'} disabled={!online || used > 0} onClick={() => { if (confirm(`Excluir a linha ${l.code}?`)) void act(() => send('DELETE', `/api/lines/${l.id}`), 'Linha excluída.'); }}><Icon.trash /></IconAction>
+                </span></td>
               </tr>
             );
           })}</tbody>
         </table></div>
       )}
+      </div>
       {edit && (
         <SimpleForm title={edit.id ? 'Editar linha' : 'Nova linha'} onClose={() => setEdit(null)}
           onSave={async () => {
@@ -69,26 +74,29 @@ export function OnibusPage() {
   };
   return (
     <div>
-      <div className="page-head"><h1>Ônibus</h1><button className="btn btn-primary" disabled={!online} onClick={() => setEdit({ fleetNumber: '', plate: '', active: true })}>+ Novo ônibus</button></div>
-      <div className="filters"><input type="search" placeholder="Pesquisar carro ou placa" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+      <PageHeader title="Cadastro de Ônibus" subtitle="Número de frota (carro) e placa"
+        right={<button className="btn btn-primary" disabled={!online} onClick={() => setEdit({ fleetNumber: '', plate: '', active: true })}><Icon.plus /> Novo Ônibus</button>} />
+      <div className="panel">
+      <div className="filters"><label className="search"><Icon.search /><input type="search" placeholder="Buscar carro ou placa…" value={q} onChange={(e) => setQ(e.target.value)} /></label></div>
       {list.length === 0 ? <Empty>Nenhum ônibus cadastrado.</Empty> : (
         <div className="table-wrap"><table className="table">
-          <thead><tr><th>Carro (frota)</th><th>Placa</th><th>Situação</th><th>Uso em escalas</th><th></th></tr></thead>
+          <thead><tr><th>Número</th><th>Placa</th><th>Situação</th><th>Uso em escalas</th><th className="c">Ações</th></tr></thead>
           <tbody>{list.map((b) => {
             const used = catalog.usage.buses[b.id] ?? 0;
             return (
               <tr key={b.id} className={b.active ? '' : 'row-off'}>
                 <td className="strong">{b.fleetNumber}</td><td>{b.plate || <span className="muted">—</span>}</td><td><ActiveBadge active={b.active} /></td><td>{used}</td>
-                <td className="actions">
-                  <button className="btn btn-sm" disabled={!online} onClick={() => setEdit(b)}>Editar</button>
-                  <button className="btn btn-sm" disabled={!online} onClick={() => void act(() => send('PUT', `/api/buses/${b.id}`, { ...b, active: !b.active }), 'Situação alterada.')}>{b.active ? 'Inativar' : 'Reativar'}</button>
-                  {used === 0 && <button className="btn btn-sm btn-danger-ghost" disabled={!online} onClick={() => { if (confirm(`Excluir o carro ${b.fleetNumber}?`)) void act(() => send('DELETE', `/api/buses/${b.id}`), 'Ônibus excluído.'); }}>Excluir</button>}
-                </td>
+                <td className="c"><span className="row-actions">
+                  <IconAction title="Editar" disabled={!online} onClick={() => setEdit(b)}><Icon.edit /></IconAction>
+                  <IconAction kind="neutral" title={b.active ? 'Inativar' : 'Reativar'} disabled={!online} onClick={() => void act(() => send('PUT', `/api/buses/${b.id}`, { ...b, active: !b.active }), 'Situação alterada.')}><Icon.power /></IconAction>
+                  <IconAction kind="danger" title={used ? 'Já usado em escalas: inative em vez de excluir' : 'Excluir'} disabled={!online || used > 0} onClick={() => { if (confirm(`Excluir o carro ${b.fleetNumber}?`)) void act(() => send('DELETE', `/api/buses/${b.id}`), 'Ônibus excluído.'); }}><Icon.trash /></IconAction>
+                </span></td>
               </tr>
             );
           })}</tbody>
         </table></div>
       )}
+      </div>
       {edit && (
         <SimpleForm title={edit.id ? 'Editar ônibus' : 'Novo ônibus'} onClose={() => setEdit(null)}
           onSave={async () => {
