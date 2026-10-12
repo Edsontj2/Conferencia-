@@ -86,6 +86,20 @@ function makeDatabase(runner: Runner, schemas: Record<Mode, string>): Database {
   };
 }
 
+/**
+ * Remove parâmetros que o driver `pg` interpretaria por conta própria (sslmode, supa, pgbouncer),
+ * como os incluídos na POSTGRES_URL da integração Vercel + Supabase. O SSL é configurado abaixo.
+ */
+export function cleanUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    for (const k of ['sslmode', 'supa', 'pgbouncer', 'sslrootcert']) u.searchParams.delete(k);
+    return u.toString();
+  } catch {
+    return raw;
+  }
+}
+
 export interface DbOptions {
   /** postgres://… (Supabase). Vazio = PGlite em `pgliteDir` (ou em memória). */
   databaseUrl?: string;
@@ -101,7 +115,7 @@ export async function openDatabase(opts: DbOptions = {}): Promise<Database> {
     const Pool = pg.default?.Pool ?? (pg as unknown as { Pool: typeof PgPool }).Pool;
     const local = /@(localhost|127\.0\.0\.1)[:/]/.test(opts.databaseUrl);
     runner = pgRunner(new Pool({
-      connectionString: opts.databaseUrl,
+      connectionString: cleanUrl(opts.databaseUrl),
       max: Number(process.env.DB_POOL_MAX ?? 3),
       idleTimeoutMillis: 10_000,
       ssl: local ? undefined : { rejectUnauthorized: false },

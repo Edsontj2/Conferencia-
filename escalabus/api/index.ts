@@ -12,7 +12,7 @@ let ready: Promise<ReturnType<typeof createApp>> | null = null;
 
 async function init() {
   const cfg = config();
-  if (!cfg.databaseUrl) throw new Error('Configure DATABASE_URL (string de conexão do Supabase) nas variáveis de ambiente da Vercel.');
+  if (!cfg.databaseUrl) throw new Error('Banco não configurado: conecte o Supabase ao projeto na Vercel (Storage → Connect) ou defina DATABASE_URL.');
   const db = await openDatabase({ databaseUrl: cfg.databaseUrl, schemaPrefix: cfg.schemaPrefix });
   const opts = {
     db, secureCookies: cfg.secureCookies ?? true, seedRealData: cfg.seedRealData,
