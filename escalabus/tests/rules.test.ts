@@ -31,14 +31,29 @@ describe('alternância semanal', () => {
     const e2 = [entry(SAT, '06:00', '12:00', { driverId: 1, conductorId: 2 })];
     expect(codes(e2, ctx(P, [{ personId: 1, date: '2026-10-11', scheduleId: 9 }]))).toEqual([]);
   });
-  it('permite sábado e domingo no mesmo fim de semana', () => {
+  it('um dia por fim de semana: bloqueia sábado e domingo do mesmo fim de semana (padrão)', () => {
+    const e = [
+      entry(SAT, '06:00', '12:00', { driverId: 1, conductorId: 2, busId: 1 }),
+      entry(SUN, '06:00', '12:00', { driverId: 1, conductorId: 4, busId: 1 }),
+    ];
+    expect(codes(e, ctx(P))).toContain('SAME_WEEKEND');
+  });
+  it('permite sábado e domingo no mesmo fim de semana quando configurado', () => {
     const e = [
       entry(SAT, '06:00', '12:00', { driverId: 1, conductorId: 2, busId: 1 }),
       entry(SUN, '06:00', '12:00', { driverId: 1, conductorId: 2, busId: 1 }),
     ];
-    const issues = validateSchedule(e, ctx(P));
+    const issues = validateSchedule(e, ctx(P, [], { settings: { maxServicesPerDay: 1, allowBothDays: true } }));
     expect(hasErrors(issues)).toBe(false);
     expect(canConfirm(issues)).toBe(true);
+  });
+  it('quem trabalha sábado 10/10 não trabalha domingo 11/10 nem sábado 17/10, mas pode domingo 18/10', () => {
+    const c10 = { ...ctx(P), saturday: '2026-10-10' };
+    expect(codes([entry('2026-10-10', '06:00', '12:00', { driverId: 1, conductorId: 2, busId: 1 }),
+      entry('2026-10-11', '06:00', '12:00', { driverId: 1, conductorId: 4, busId: 1 })], c10)).toContain('SAME_WEEKEND');
+    const work = [{ personId: 1, date: '2026-10-10', scheduleId: 1 }];
+    expect(codes([entry(SAT, '06:00', '12:00', { driverId: 1, conductorId: 2 })], ctx(P, work))).toContain('WEEKLY_PREV');
+    expect(codes([entry(SUN, '06:00', '12:00', { driverId: 1, conductorId: 2 })], ctx(P, work))).toEqual([]);
   });
   it('ao editar escala antiga, confere o sábado seguinte já confirmado', () => {
     const e = [entry(SAT, '06:00', '12:00', { driverId: 1, conductorId: 2 })];

@@ -23,12 +23,24 @@ describe('geração aleatória', () => {
     const { entries } = buildSlotsFromServices(SAT, services, [line(1)], [bus(1), bus(2), bus(3)], mkId);
     expect(entries).toHaveLength(3);
     const people = [person(1, 'motorista'), person(2, 'motorista'), person(3, 'cobrador'), person(4, 'cobrador'),
-      person(5, 'motorista', '00:00', '00:00', { active: false })];
+      person(5, 'motorista', '00:00', '00:00', { active: false }), person(6, 'motorista'), person(7, 'cobrador')];
     for (let seed = 1; seed <= 30; seed++) {
       const r = generateSchedule({ entries, people, otherConfirmed: [], settings: { maxServicesPerDay: 1 }, historyCounts: {}, seed });
       expect(r.unfilled).toEqual([]);
       expect(r.entries.some((e) => e.driverId === 5)).toBe(false);
       expect(canConfirm(check(r.entries, people))).toBe(true);
+    }
+  });
+
+  it('sorteio respeita um dia por fim de semana', () => {
+    const slots = [entry(SAT, '06:00', '12:00', { busId: 1 }), entry(SUN, '06:00', '12:00', { busId: 1 })];
+    const people = [person(1, 'motorista'), person(3, 'cobrador'), person(4, 'cobrador')];
+    for (let seed = 1; seed <= 10; seed++) {
+      const r = generateSchedule({ entries: slots, people, otherConfirmed: [], settings: { maxServicesPerDay: 1 }, historyCounts: {}, seed });
+      expect(r.unfilled.filter((u) => u.role === 'driver')).toHaveLength(1);
+      expect(r.unfilled[0].reasons.join(' ')).toMatch(/outro dia deste fim de semana/);
+      const both = generateSchedule({ entries: slots, people, otherConfirmed: [], settings: { maxServicesPerDay: 1, allowBothDays: true }, historyCounts: {}, seed });
+      expect(both.unfilled).toEqual([]);
     }
   });
 
@@ -40,7 +52,7 @@ describe('geração aleatória', () => {
 
   it('respeita a alternância: quem trabalhou sábado anterior fica fora do sábado mas pode no domingo', () => {
     const slots = [entry(SAT, '06:00', '12:00', { busId: 1 }), entry(SUN, '06:00', '12:00', { busId: 1 })];
-    const people = [person(1, 'motorista'), person(2, 'motorista'), person(3, 'cobrador')];
+    const people = [person(1, 'motorista'), person(2, 'motorista'), person(3, 'cobrador'), person(4, 'cobrador')];
     const work = [{ personId: 1, date: '2026-10-10', scheduleId: 1 }];
     for (let seed = 1; seed <= 20; seed++) {
       const r = generateSchedule({ entries: slots, people, otherConfirmed: work, settings: { maxServicesPerDay: 1 }, historyCounts: {}, seed });

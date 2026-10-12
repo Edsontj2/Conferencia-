@@ -71,7 +71,7 @@ const recipientIn = z.object({
   name: z.string().trim().min(1, 'Informe o nome.').max(120),
   phone: z.string().trim().refine((v) => !phoneProblem(v), { message: 'Número inválido: inclua código do país e DDD.' }),
 });
-const settingsIn = z.object({ companyName: z.string().trim().min(1).max(120), maxServicesPerDay: z.number().int().min(1).max(5) });
+const settingsIn = z.object({ companyName: z.string().trim().min(1).max(120), maxServicesPerDay: z.number().int().min(1).max(5), allowBothDays: z.boolean().default(false) });
 const entryIn = z.object({
   id: z.string().min(1).max(64),
   date: z.string().refine(isValidDate, 'Data inválida.'),
