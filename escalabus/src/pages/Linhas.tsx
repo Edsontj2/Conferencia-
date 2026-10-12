@@ -78,7 +78,7 @@ export function OnibusPage() {
             const used = catalog.usage.buses[b.id] ?? 0;
             return (
               <tr key={b.id} className={b.active ? '' : 'row-off'}>
-                <td className="strong">{b.fleetNumber}</td><td>{b.plate}</td><td><ActiveBadge active={b.active} /></td><td>{used}</td>
+                <td className="strong">{b.fleetNumber}</td><td>{b.plate || <span className="muted">—</span>}</td><td><ActiveBadge active={b.active} /></td><td>{used}</td>
                 <td className="actions">
                   <button className="btn btn-sm" disabled={!online} onClick={() => setEdit(b)}>Editar</button>
                   <button className="btn btn-sm" disabled={!online} onClick={() => void act(() => send('PUT', `/api/buses/${b.id}`, { ...b, active: !b.active }), 'Situação alterada.')}>{b.active ? 'Inativar' : 'Reativar'}</button>
@@ -97,7 +97,7 @@ export function OnibusPage() {
             toast('Ônibus salvo.'); setEdit(null); await reloadCatalog();
           }}>
           <Field label="Número de frota (carro)"><input value={edit.fleetNumber ?? ''} onChange={(e) => setEdit({ ...edit, fleetNumber: e.target.value })} maxLength={20} /></Field>
-          <Field label="Placa" hint="Ex.: ABC1D23 ou ABC-1234"><input value={edit.plate ?? ''} onChange={(e) => setEdit({ ...edit, plate: e.target.value.toUpperCase() })} maxLength={8} /></Field>
+          <Field label="Placa (opcional)" hint="Ex.: ABC1D23 ou ABC-1234"><input value={edit.plate ?? ''} onChange={(e) => setEdit({ ...edit, plate: e.target.value.toUpperCase() })} maxLength={8} /></Field>
           <label className="check"><input type="checkbox" checked={edit.active ?? true} onChange={(e) => setEdit({ ...edit, active: e.target.checked })} /> Ativo</label>
         </SimpleForm>
       )}

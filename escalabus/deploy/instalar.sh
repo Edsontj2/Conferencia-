@@ -80,17 +80,17 @@ HOST=$BIND
 PORT=$PORT
 DATA_DIR=$DATA
 COOKIE_SECURE=$SECURE
+# Para usar o Supabase em vez do banco local, preencha:
+DATABASE_URL=
 CFG
   chmod 640 "$ENVFILE"
   chown root:"$SVC_USER" "$ENVFILE"
 fi
 
 msg "Aplicando migrações do banco"
-( cd "$APP"; as_app env DATA_DIR="$DATA" npm run --silent migrate )
+( set -a; . "$ENVFILE"; set +a; cd "$APP"; as_app env DATA_DIR="$DATA" DATABASE_URL="${DATABASE_URL:-}" npm run --silent migrate )
 
-HAS_ADMIN="$(cd "$APP" && as_app node -e '
-  const D=require("better-sqlite3"); const db=new D(process.argv[1],{readonly:true});
-  console.log(db.prepare("SELECT COUNT(*) c FROM users").get().c)' "$DATA/escalabus.db")"
+HAS_ADMIN="$(set -a; . "$ENVFILE"; set +a; cd "$APP" && as_app env DATA_DIR="$DATA" DATABASE_URL="${DATABASE_URL:-}" SEED_REAL_DATA=false node_modules/.bin/tsx server/cli.ts has-admin | tail -1)"
 if [ "$HAS_ADMIN" = "0" ]; then
   msg "Criando o administrador do EscalaBus"
   read -r -p "Usuário [admin]: " ADM_USER </dev/tty; ADM_USER="${ADM_USER:-admin}"
@@ -100,7 +100,7 @@ if [ "$HAS_ADMIN" = "0" ]; then
     [ "${#ADM_PW}" -ge 8 ] && [ "$ADM_PW" = "$ADM_PW2" ] && break
     echo "Senhas diferentes ou curtas demais. Tente de novo."
   done
-  ( cd "$APP"; as_app env DATA_DIR="$DATA" ADMIN_USERNAME="$ADM_USER" ADMIN_PASSWORD="$ADM_PW" \
+  ( set -a; . "$ENVFILE"; set +a; cd "$APP"; as_app env DATA_DIR="$DATA" DATABASE_URL="${DATABASE_URL:-}" ADMIN_USERNAME="$ADM_USER" ADMIN_PASSWORD="$ADM_PW" \
       node_modules/.bin/tsx server/cli.ts create-admin --env )
   unset ADM_PW ADM_PW2
 fi
@@ -167,5 +167,5 @@ Comandos úteis:
   sudo systemctl status escalabus      # situação
   sudo journalctl -u escalabus -f      # registros
   sudo bash instalar.sh                # atualizar para a versão mais nova
-Dados e bancos: $DATA  (faça backup desta pasta)
+Dados (banco local): $DATA  (faça backup desta pasta)
 FIM

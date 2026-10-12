@@ -1,6 +1,6 @@
-import { compareEntries } from './generator';
-import { parseHM, WEEKDAY_NAMES, weekdayOf, fmtDateDash } from './time';
-import type { Entry } from './types';
+import { compareEntries } from './generator.js';
+import { parseHM, WEEKDAY_NAMES, weekdayOf, fmtDateDash } from './time.js';
+import type { Entry } from './types.js';
 
 export interface ReportRow {
   seq: number;

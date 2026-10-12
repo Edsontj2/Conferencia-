@@ -1,10 +1,10 @@
 import {
   absInterval, addDays, dayLabel, fitsAvailability, fmtDate, isSaturday, isValidHM, overlaps, sundayOf,
-} from './time';
+} from './time.js';
 import type {
   AssignRole, Bus, ConfirmedWork, Entry, HistoryMissing, Issue, Line, Person, Settings,
-} from './types';
-import { roleOf } from './types';
+} from './types.js';
+import { roleOf } from './types.js';
 
 export interface RuleContext {
   saturday: string;
@@ -161,7 +161,7 @@ export function validateSchedule(entries: Entry[], ctx: RuleContext): Issue[] {
     }
     // Ônibus
     if (e.busId == null) {
-      issues.push({ code: 'NO_BUS', severity: 'incomplete', entryId: e.id, message: `${label(e)}: ônibus não informado.` });
+      issues.push({ code: 'NO_BUS', severity: 'warning', entryId: e.id, message: `${label(e)}: carro não definido.` });
     } else {
       const b = ctx.buses.get(e.busId);
       const keep = baseline?.get(e.id)?.busId === e.busId;
@@ -286,12 +286,12 @@ export const hasErrors = (issues: Issue[]) => issues.some((i) => i.severity === 
 export const canConfirm = (issues: Issue[]) => !issues.some((i) => i.severity === 'error' || i.severity === 'incomplete');
 
 /** Valida um conjunto de serviços-modelo: o mesmo ônibus não pode ter serviços sobrepostos no mesmo dia da semana. */
-export function serviceBusConflicts<T extends { id: number; weekday: number; busId: number; startTime: string; endTime: string; active: boolean }>(
+export function serviceBusConflicts<T extends { id: number; weekday: number; busId: number | null; startTime: string; endTime: string; active: boolean }>(
   services: T[],
 ): [T, T][] {
   // Usa um sábado/domingo de referência para comparar intervalos (inclusive atravessando a meia-noite).
   const refDate = (wd: number) => (wd === 6 ? '2000-01-01' : '2000-01-02');
-  const act = services.filter((s) => s.active && isValidHM(s.startTime) && isValidHM(s.endTime) && s.startTime !== s.endTime);
+  const act = services.filter((s) => s.active && s.busId != null && isValidHM(s.startTime) && isValidHM(s.endTime) && s.startTime !== s.endTime);
   const out: [T, T][] = [];
   for (let i = 0; i < act.length; i++) {
     for (let j = i + 1; j < act.length; j++) {

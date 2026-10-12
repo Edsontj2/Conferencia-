@@ -8,8 +8,7 @@
     "skipLibCheck": true,
     "types": ["node"],
     "noEmit": true,
-    "isolatedModules": true,
-    "allowImportingTsExtensions": false
+    "isolatedModules": true
   },
-  "include": ["server", "shared", "tests"]
+  "include": ["server", "shared", "tests", "api"]
 }

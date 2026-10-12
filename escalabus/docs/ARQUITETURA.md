@@ -7,27 +7,29 @@ Um único projeto Node.js/TypeScript com três partes:
 | Parte | Tecnologia | Por quê |
 |---|---|---|
 | `shared/` | TypeScript puro | **Regras de escala, sorteio, relatório e WhatsApp num só lugar.** O mesmo código valida no navegador (resposta imediata) e no servidor (fonte da verdade). Testável sem banco nem navegador. |
-| `server/` | Express 5 + SQLite (`better-sqlite3`) | Um processo, um arquivo de banco, sem servidor de banco para instalar. SQLite é transacional (ACID) e suficiente para um administrador e alguns dispositivos. Gravações são serializadas (`BEGIN IMMEDIATE`), sem condições de corrida. |
+| `server/` + `api/` | Express 5 + Postgres (`pg`) | Na Vercel, o Express roda como uma função serverless (`api/index.ts`); em servidor próprio, como processo normal. Banco Postgres no Supabase; localmente e nos testes, PGlite (Postgres embutido, mesmo SQL). Cada requisição usa uma transação; gravações de escalas são serializadas por trava (`pg_advisory_xact_lock`). |
 | `src/` | React 19 + Vite + `vite-plugin-pwa` | SPA leve, PWA instalável com service worker gerado pelo Workbox. |
 
-Em produção, o próprio Express serve o frontend compilado (`dist/`): **um processo, uma porta**. Backup = copiar a pasta `data/` (ou usar a exportação JSON da tela Configurações).
+Na Vercel, o frontend (`dist/`) é servido pela CDN e `/api/*` vai para a função. Em servidor próprio, o Express serve os dois numa porta só.
 
-Alternativas descartadas: PostgreSQL (exige outro serviço sem ganho para este volume), Firebase/Supabase (dependência externa e dados fora do servidor da empresa), localStorage como banco (proibido pelos requisitos e não compartilha entre dispositivos).
+**Real × demonstração:** schemas separados no mesmo banco (`escalabus` e `escalabus_demo`); cada transação faz `SET LOCAL search_path`, o que funciona com o pooler em modo transação do Supabase.
+
+Primeira versão usava SQLite em arquivo; foi trocado por Postgres porque a Vercel não tem disco persistente. localStorage como banco foi descartado (proibido pelos requisitos e não compartilha entre dispositivos).
 
 ## Fluxo de dados
 
 ```
-Navegador (React)                     Servidor (Express)                 SQLite
-  ├─ shared/rules  → validação local    ├─ shared/rules → revalidação      ├─ escalabus.db       (dados reais + usuários/sessões)
-  ├─ cópia offline (localStorage)       ├─ transações + versão otimista   └─ escalabus-demo.db  (demonstração, fictícios)
-  └─ service worker (casca do app)      └─ auth por cookie httpOnly
+Navegador (React)                     API (Express/Vercel)               Postgres (Supabase)
+  ├─ shared/rules  → validação local    ├─ shared/rules → revalidação      ├─ schema escalabus      (dados reais + usuários/sessões)
+  ├─ cópia offline (localStorage)       ├─ transações + versão otimista   └─ schema escalabus_demo (demonstração, fictícios)
+  └─ service worker (casca do app)      └─ auth por cookie httpOnly        
 ```
 
 * **Fonte da verdade:** sempre o servidor. O `localStorage` guarda só uma *cópia* das últimas respostas GET (por usuário e modo), para consulta offline; é apagada ao sair.
 * **Offline:** o service worker serve a casca do app; os dados vêm da cópia. Um aviso vermelho fica visível e **todas as gravações são bloqueadas** (o cliente recusa antes de enviar; nada fica "pendente").
 * **Concorrência entre dispositivos:** cada escala tem `version`. Salvar/confirmar/cancelar/trocar exige a versão lida; se outro dispositivo alterou antes, o servidor responde 409 e o app recarrega — nada é sobrescrito em silêncio.
 
-## Modelo de dados (migration `server/migrations/001_init.sql`)
+## Modelo de dados (migrations em `server/migrations.ts`)
 
 ```
 users(id, username, password_hash[scrypt], created_at)
@@ -36,8 +38,10 @@ settings(key, value)                         -- companyName, maxServicesPerDay
 people(id, name, role['motorista'|'cobrador'], shift_name, avail_start, avail_end, whatsapp, active)
 lines(id, code UNIQUE, description, active)
 buses(id, fleet_number UNIQUE, plate, active)
-services(id, weekday[6=sáb|0=dom], line_id→lines, bus_id→buses, start_time, end_time, shift_name, active)
+services(id, weekday[6=sáb|0=dom], line_id→lines, bus_id→buses (opcional: carro a definir), start_time, end_time, shift_name, active)
 recipients(id, name, phone)
+login_attempts(ip, fails, until)            -- limite de tentativas de login
+backup_snapshots(id, created_at, reason, data) -- cópia automática antes de importar backup
 schedules(id, saturday, status['rascunho'|'confirmada'|'cancelada'], version, notes, …, cancel_reason)
    UNIQUE (saturday) WHERE status <> 'cancelada'   -- no máximo uma escala ativa por fim de semana
 schedule_entries(uid, schedule_id, position, date, service_id,
@@ -54,7 +58,7 @@ Decisões importantes:
 * **Sem chave estrangeira de `schedule_entries` para cadastros** — o histórico não pode depender do cadastro atual. Em vez disso, a API **impede excluir** pessoa/linha/ônibus já usados em escala (deve-se inativar).
 * **Uma escala = um fim de semana**, identificada pelo sábado. Cada registro tem a **data de início** do serviço (sábado ou domingo). Serviços que atravessam a meia-noite (`fim <= início`) terminam no dia seguinte.
 * **Serviços (`services`) são modelos**: o sorteio copia os ativos para os registros da escala; editar a escala nunca altera o modelo.
-* **Banco de demonstração separado** (`escalabus-demo.db`): mesma estrutura, dados fictícios com "(fictício)" no nome e "DEMONSTRAÇÃO" na empresa. A sessão guarda o modo; a troca é explícita em Configurações e há uma faixa roxa permanente na tela.
+* **Demonstração em schema separado** (`escalabus_demo`): mesma estrutura, dados fictícios com "(fictício)" no nome e "DEMONSTRAÇÃO" na empresa. A sessão guarda o modo; a troca é explícita em Configurações e há uma faixa roxa permanente na tela.
 
 ## Regras (shared/rules.ts)
 

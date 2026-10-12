@@ -1,19 +1,22 @@
+import fs from 'node:fs';
 import readline from 'node:readline/promises';
-import { config } from './config';
-import { openDb, migrate } from './db';
-import { upsertAdmin } from './auth';
-import { seedDemo } from './demo';
+import { config } from './config.js';
+import { openDatabase } from './db.js';
+import { upsertAdmin } from './auth.js';
+import { seedDemo } from './demo.js';
+import { applySeeds } from './seed.js';
 
 const cfg = config();
 const cmd = process.argv[2];
 
 async function main() {
+  if (!cfg.databaseUrl) fs.mkdirSync(cfg.pgliteDir, { recursive: true });
+  const open = () => openDatabase({ databaseUrl: cfg.databaseUrl, pgliteDir: cfg.databaseUrl ? undefined : cfg.pgliteDir, schemaPrefix: cfg.schemaPrefix });
   if (cmd === 'migrate') {
-    for (const f of [cfg.dbFile, cfg.demoDbFile]) {
-      const db = openDb(f);
-      console.log(`${f}: ${migrate(db).length ? 'migrações aplicadas' : 'esquema atualizado'}`);
-      db.close();
-    }
+    const db = await open(); // aplica migrations ao abrir
+    if (cfg.seedRealData) await db.tx('real', applySeeds);
+    await db.close();
+    console.log('Banco atualizado.');
   } else if (cmd === 'create-admin') {
     let user = cfg.adminUsername;
     let pw = cfg.adminPassword;
@@ -24,12 +27,20 @@ async function main() {
       pw = await rl.question('Senha (mín. 8 caracteres): ');
       rl.close();
     }
-    const db = openDb(cfg.dbFile);
-    upsertAdmin(db, user, pw);
+    const db = await open();
+    await db.tx('real', (q) => upsertAdmin(q, user, pw));
+    await db.close();
     console.log(`Administrador "${user}" salvo. Sessões anteriores desse usuário foram encerradas.`);
+  } else if (cmd === 'has-admin') {
+    const db = await open();
+    const n = await db.tx('real', async (q) => (await q('SELECT 1 FROM users LIMIT 1')).length);
+    await db.close();
+    console.log(n);
   } else if (cmd === 'demo-reset') {
-    seedDemo(openDb(cfg.demoDbFile));
-    console.log('Banco de demonstração recriado com dados fictícios.');
+    const db = await open();
+    await db.tx('demo', seedDemo);
+    await db.close();
+    console.log('Dados de demonstração recriados.');
   } else {
     console.log('Comandos: migrate | create-admin | demo-reset');
     process.exit(1);

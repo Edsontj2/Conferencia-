@@ -7,7 +7,7 @@ import type { Service } from '../../shared/types';
 import { serviceBusConflicts } from '../../shared/rules';
 import { crossesMidnight } from '../../shared/time';
 
-type Form = Omit<Service, 'id' | 'lineId' | 'busId'> & { id?: number; lineId: number | ''; busId: number | '' };
+type Form = Omit<Service, 'id' | 'lineId' | 'busId'> & { id?: number; lineId: number | ''; busId: number | '' | null };
 
 export function ServicosPage() {
   const { catalog, reloadCatalog, toast, online } = useApp();
@@ -24,7 +24,7 @@ export function ServicosPage() {
   if (!catalog) return <p>Carregando…</p>;
 
   const conflictWith = (f: Form) => {
-    if (f.lineId === '' || f.busId === '' || !f.active) return null;
+    if (f.lineId === '' || f.busId === '' || f.busId == null || !f.active) return null;
     const cand = { ...f, id: f.id ?? -1, lineId: f.lineId, busId: f.busId };
     const others = catalog.services.filter((s) => s.id !== f.id);
     const c = serviceBusConflicts([...others, cand]).find(([a, b]) => a.id === cand.id || b.id === cand.id);
@@ -36,7 +36,7 @@ export function ServicosPage() {
   const act = async (fn: () => Promise<unknown>, ok: string) => {
     try { await fn(); toast(ok); await reloadCatalog(); } catch (e) { toast((e as Error).message, 'err'); }
   };
-  const payload = (s: Form | Service) => ({ weekday: s.weekday, lineId: Number(s.lineId), busId: Number(s.busId), startTime: s.startTime, endTime: s.endTime, shiftName: s.shiftName, active: s.active });
+  const payload = (s: Form | Service) => ({ weekday: s.weekday, lineId: Number(s.lineId), busId: s.busId === '' || s.busId == null ? null : Number(s.busId), startTime: s.startTime, endTime: s.endTime, shiftName: s.shiftName, active: s.active });
 
   return (
     <div>
@@ -55,13 +55,13 @@ export function ServicosPage() {
         <div className="table-wrap"><table className="table">
           <thead><tr><th>Dia</th><th>Turno</th><th>Saída</th><th>Rendição</th><th>Linha</th><th>Carro</th><th>Situação</th><th></th></tr></thead>
           <tbody>{list.map((s) => {
-            const l = lines.get(s.lineId), b = buses.get(s.busId);
+            const l = lines.get(s.lineId), b = s.busId == null ? undefined : buses.get(s.busId);
             return (
               <tr key={s.id} className={s.active ? '' : 'row-off'}>
                 <td>{s.weekday === 6 ? 'Sábado' : 'Domingo'}</td><td>{s.shiftName}</td><td>{s.startTime}</td>
                 <td className="nowrap">{s.endTime}{crossesMidnight(s.startTime, s.endTime) ? ' (+1)' : ''}</td>
                 <td>{l?.code}{l && !l.active ? ' (inativa)' : ''}</td>
-                <td>{b?.fleetNumber}{b && !b.active ? ' (inativo)' : ''}</td>
+                <td>{b ? b.fleetNumber : <span className="muted">a definir</span>}{b && !b.active ? ' (inativo)' : ''}</td>
                 <td><ActiveBadge active={s.active} /></td>
                 <td className="actions">
                   <button className="btn btn-sm" disabled={!online} onClick={() => setEdit({ ...s })}>Editar</button>
@@ -76,7 +76,7 @@ export function ServicosPage() {
       )}
       {edit && (
         <SimpleForm title={edit.id ? 'Editar serviço' : 'Novo serviço'} onClose={() => setEdit(null)} onSave={async () => {
-          if (edit.lineId === '' || edit.busId === '') throw new Error('Escolha a linha e o ônibus.');
+          if (edit.lineId === '') throw new Error('Escolha a linha.');
           if (!edit.shiftName.trim()) throw new Error('Informe o turno.');
           if (edit.startTime === edit.endTime) throw new Error('Saída e término não podem ser iguais.');
           const c = conflictWith(edit);
@@ -89,9 +89,9 @@ export function ServicosPage() {
             <option value="">Selecione…</option>
             {catalog.lines.filter((l) => l.active || l.id === edit.lineId).map((l) => <option key={l.id} value={l.id}>{l.code}{l.description ? ` – ${l.description}` : ''}</option>)}
           </select></Field>
-          <Field label="Ônibus (carro)"><select value={edit.busId} onChange={(e) => setEdit({ ...edit, busId: e.target.value ? Number(e.target.value) : '' })}>
-            <option value="">Selecione…</option>
-            {catalog.buses.filter((b) => b.active || b.id === edit.busId).map((b) => <option key={b.id} value={b.id}>{b.fleetNumber} – {b.plate}</option>)}
+          <Field label="Ônibus (carro)" hint="Pode ficar a definir; aparece como aviso na escala."><select value={edit.busId ?? ''} onChange={(e) => setEdit({ ...edit, busId: e.target.value ? Number(e.target.value) : null })}>
+            <option value="">— a definir —</option>
+            {catalog.buses.filter((b) => b.active || b.id === edit.busId).map((b) => <option key={b.id} value={b.id}>{b.fleetNumber}{b.plate ? ` – ${b.plate}` : ''}</option>)}
           </select></Field>
           <div className="field-row">
             <Field label="Saída"><input type="time" value={edit.startTime} onChange={(e) => setEdit({ ...edit, startTime: e.target.value })} /></Field>

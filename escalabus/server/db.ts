@@ -1,37 +1,143 @@
-import Database from 'better-sqlite3';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import type { Pool as PgPool } from 'pg';
+import { MIGRATIONS } from './migrations.js';
 
-export type DB = Database.Database;
-const MIGRATIONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'migrations');
+/**
+ * Acesso ao Postgres. Produção: Supabase (pg + pooler). Local/testes: PGlite (Postgres embutido).
+ *
+ * Os dados reais e os de demonstração ficam em schemas separados do mesmo banco.
+ * Cada operação roda numa transação com `SET LOCAL search_path`, o que funciona com o
+ * pooler em modo transação do Supabase (serverless).
+ */
+export type Row = Record<string, unknown>;
+export type Q = <T = Row>(sql: string, params?: unknown[]) => Promise<T[]>;
+export type Mode = 'real' | 'demo';
 
-export function openDb(file: string): DB {
-  if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
-  const db = new Database(file);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  db.pragma('busy_timeout = 5000');
-  migrate(db);
+export interface Database {
+  tx<T>(mode: Mode, fn: (q: Q) => Promise<T>): Promise<T>;
+  close(): Promise<void>;
+  readonly schemas: Record<Mode, string>;
+}
+
+/** Converte `?` em `$1, $2…` (as consultas do app não usam `?` dentro de textos literais). */
+export function toPg(sql: string): string {
+  let i = 0;
+  return sql.replace(/\?/g, () => `$${++i}`);
+}
+
+const SCHEMA_RE = /^[a-z_][a-z0-9_]*$/;
+function schemaNames(prefix = 'escalabus'): Record<Mode, string> {
+  if (!SCHEMA_RE.test(prefix)) throw new Error('DB_SCHEMA inválido.');
+  return { real: prefix, demo: `${prefix}_demo` };
+}
+
+interface Runner {
+  run<T>(fn: (exec: (sql: string, params?: unknown[]) => Promise<Row[]>) => Promise<T>): Promise<T>;
+  close(): Promise<void>;
+}
+
+function pgRunner(pool: PgPool): Runner {
+  return {
+    async run(fn) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const r = await fn(async (sql, params) => (await client.query(sql, params as unknown[])).rows);
+        await client.query('COMMIT');
+        return r;
+      } catch (e) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
+    close: () => pool.end(),
+  };
+}
+
+async function pgliteRunner(dataDir?: string): Promise<Runner> {
+  const { PGlite } = await import('@electric-sql/pglite');
+  const db = new PGlite(dataDir);
+  await db.waitReady;
+  return {
+    run: (fn) => db.transaction((tx) => fn(async (sql, params) => {
+      // Sem parâmetros usa exec (aceita vários comandos, como nas migrations)
+      if (!params || params.length === 0) {
+        const rs = await tx.exec(sql);
+        return (rs[rs.length - 1]?.rows ?? []) as Row[];
+      }
+      return (await tx.query<Row>(sql, params as unknown[])).rows;
+    })),
+    close: () => db.close(),
+  };
+}
+
+function makeDatabase(runner: Runner, schemas: Record<Mode, string>): Database {
+  return {
+    schemas,
+    tx(mode, fn) {
+      return runner.run(async (exec) => {
+        await exec(`SET LOCAL search_path TO "${schemas[mode]}"`);
+        const q: Q = async <T>(sql: string, params: unknown[] = []) => (await exec(toPg(sql), params)) as T[];
+        return fn(q);
+      });
+    },
+    close: () => runner.close(),
+  };
+}
+
+export interface DbOptions {
+  /** postgres://… (Supabase). Vazio = PGlite em `pgliteDir` (ou em memória). */
+  databaseUrl?: string;
+  pgliteDir?: string;
+  schemaPrefix?: string;
+}
+
+export async function openDatabase(opts: DbOptions = {}): Promise<Database> {
+  const schemas = schemaNames(opts.schemaPrefix);
+  let runner: Runner;
+  if (opts.databaseUrl) {
+    const pg = await import('pg');
+    const Pool = pg.default?.Pool ?? (pg as unknown as { Pool: typeof PgPool }).Pool;
+    const local = /@(localhost|127\.0\.0\.1)[:/]/.test(opts.databaseUrl);
+    runner = pgRunner(new Pool({
+      connectionString: opts.databaseUrl,
+      max: Number(process.env.DB_POOL_MAX ?? 3),
+      idleTimeoutMillis: 10_000,
+      ssl: local ? undefined : { rejectUnauthorized: false },
+    }));
+  } else {
+    runner = await pgliteRunner(opts.pgliteDir);
+  }
+  const db = makeDatabase(runner, schemas);
+  await migrate(runner, schemas);
   return db;
 }
 
-/** Aplica, em ordem e de forma transacional, os arquivos .sql de server/migrations ainda não aplicados. */
-export function migrate(db: DB): string[] {
-  db.exec('CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)');
-  const applied = new Set(db.prepare('SELECT version FROM schema_migrations').pluck().all() as string[]);
-  const files = fs.readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort();
-  const done: string[] = [];
-  for (const f of files) {
-    if (applied.has(f)) continue;
-    const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, f), 'utf8');
-    db.transaction(() => {
-      db.exec(sql);
-      db.prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)').run(f, nowIso());
-    })();
-    done.push(f);
-  }
-  return done;
+/** Aplica as migrations pendentes nos dois schemas, com trava para várias instâncias simultâneas. */
+async function migrate(runner: Runner, schemas: Record<Mode, string>): Promise<void> {
+  await runner.run(async (exec) => {
+    await exec('SELECT pg_advisory_xact_lock(7300451)');
+    for (const mode of ['real', 'demo'] as Mode[]) {
+      const s = schemas[mode];
+      await exec(`CREATE SCHEMA IF NOT EXISTS "${s}"`);
+      await exec(`SET LOCAL search_path TO "${s}"`);
+      await exec('CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at text NOT NULL)');
+      const done = new Set((await exec('SELECT version FROM schema_migrations')).map((r) => r.version as string));
+      for (const m of MIGRATIONS) {
+        if (done.has(m.name) || (m.scope === 'auth' && mode !== 'real')) continue;
+        await exec(m.sql);
+        await exec('INSERT INTO schema_migrations (version, applied_at) VALUES ($1, $2)', [m.name, nowIso()]);
+      }
+      // No Supabase, impede acesso pela API pública (PostgREST) com as chaves anon/authenticated.
+      await exec(`DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+          EXECUTE 'REVOKE ALL ON SCHEMA "${s}" FROM anon, authenticated';
+          EXECUTE 'REVOKE ALL ON ALL TABLES IN SCHEMA "${s}" FROM anon, authenticated';
+        END IF; END $$`);
+    }
+  });
 }
 
 export const nowIso = () => new Date().toISOString();
+export const toInt = (v: unknown) => Number(v ?? 0);

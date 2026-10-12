@@ -1,19 +1,19 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../server/app';
-import { openDb, type DB } from '../server/db';
-import { upsertAdmin } from '../server/auth';
+import { createApp, prepareDatabase } from '../server/app';
+import { openDatabase, type Database } from '../server/db';
 import type { Entry } from '../shared/types';
 
-let db: DB;
+let db: Database;
 let agent: ReturnType<typeof request.agent>;
 const H = { 'X-Requested-With': 'EscalaBus' };
 
+/** Postgres embutido (PGlite) em memória: mesmo SQL do Supabase. */
 async function setup() {
-  db = openDb(':memory:');
-  const demo = openDb(':memory:');
-  upsertAdmin(db, 'admin', 'senha-segura-123');
-  const app = createApp({ mainDb: db, demoDb: demo, secureCookies: false });
+  db = await openDatabase();
+  const opts = { db, secureCookies: false, seedRealData: false, initialAdmin: { username: 'admin', password: 'senha-segura-123' } };
+  await prepareDatabase(opts);
+  const app = createApp(opts);
   agent = request.agent(app);
   await agent.post('/api/auth/login').set(H).send({ username: 'admin', password: 'senha-segura-123' }).expect(200);
   return app;
@@ -41,9 +41,10 @@ const mk = (id: string, date: string, start: string, end: string, x: Partial<Ent
 
 describe('API', () => {
   beforeEach(async () => { await setup(); });
+  afterEach(async () => { await db.close(); });
 
   it('exige autenticação e cabeçalho anti-CSRF', async () => {
-    const app = createApp({ mainDb: openDb(':memory:'), demoDb: openDb(':memory:') });
+    const app = createApp({ db });
     await request(app).get('/api/catalog').expect(401);
     await request(app).get('/api/weekend/2026-10-17').expect(401);
     await request(app).post('/api/auth/login').send({ username: 'a', password: 'b' }).expect(403);
@@ -194,8 +195,47 @@ describe('API', () => {
     expect((await agent.get('/api/catalog')).body.people).toHaveLength(4);
   });
 
+  it('aceita serviço e escala sem carro definido (aviso, não bloqueio) e placa vazia', async () => {
+    const ids = await seedBasic();
+    await post('/api/buses', { fleetNumber: '541664', plate: '', active: true }).expect(201);
+    await post('/api/services', { weekday: 0, lineId: ids.l1, busId: null, startTime: '11:15', endTime: '18:45', shiftName: 'Tarde', active: true }).expect(201);
+    const g = (await post('/api/schedules/generate', { saturday: '2026-10-17', seed: 1 }).expect(200)).body;
+    expect(g.entries[0].busId).toBeNull();
+    expect(g.issues.find((i: { code: string }) => i.code === 'NO_BUS').severity).toBe('warning');
+    const s = (await post('/api/schedules', { saturday: '2026-10-17', entries: g.entries }).expect(201)).body;
+    await post(`/api/schedules/${s.id}/confirm`, { version: s.version }).expect(200);
+  });
+
   it('rejeita datas que não são sábado', async () => {
     expect((await agent.get('/api/weekend/2026-10-18')).status).toBe(400);
     expect((await post('/api/schedules/generate', { saturday: '2026-10-19' })).status).toBe(400);
   });
+});
+
+describe('dados reais importados da escala em papel', () => {
+  it('cadastra pessoas, linhas, carros, serviços e a escala confirmada de 11/10/2026 sem violar regras', async () => {
+    const d = await openDatabase();
+    const opts = { db: d, secureCookies: false, seedRealData: true, initialAdmin: { username: 'admin', password: 'senha-segura-123' } };
+    await prepareDatabase(opts);
+    await prepareDatabase(opts); // idempotente: não duplica
+    const a = request.agent(createApp(opts));
+    await a.post('/api/auth/login').set(H).send({ username: 'admin', password: 'senha-segura-123' }).expect(200);
+    const cat = (await a.get('/api/catalog')).body;
+    expect(cat.lines.map((l: { code: string }) => l.code).sort()).toEqual(['0.782', '0.783', '141.1', '141.2', '141.5', '141.6', '141.7', '141.8', '141.9', '782.1', '783.1', '783.2', '783.3']);
+    expect(cat.services).toHaveLength(54);
+    expect(cat.services.filter((s: { busId: number | null }) => s.busId == null)).toHaveLength(3);
+    expect(cat.settings.maxServicesPerDay).toBe(2);
+    const lauro = cat.people.filter((p: { name: string }) => p.name === 'LAURO NETO');
+    expect(lauro).toHaveLength(1);
+    expect(lauro[0]).toMatchObject({ role: 'motorista', availStart: '05:00', availEnd: '22:00' });
+    const w = (await a.get('/api/weekend/2026-10-10')).body;
+    expect(w.schedule.status).toBe('confirmada');
+    expect(w.schedule.entries).toHaveLength(54);
+    expect(w.issues.filter((i: { severity: string }) => i.severity === 'error')).toEqual([]);
+    // domingo seguinte: quem trabalhou em 11/10 fica bloqueado
+    const g = (await a.post('/api/schedules/generate').set(H).send({ saturday: '2026-10-17', seed: 1 })).body;
+    const worked = new Set(w.schedule.entries.flatMap((e: Entry) => [e.driverId, e.conductorId]));
+    expect(g.entries.filter((e: Entry) => e.date === '2026-10-18').some((e: Entry) => worked.has(e.driverId) || worked.has(e.conductorId))).toBe(false);
+    await d.close();
+  }, 30000);
 });

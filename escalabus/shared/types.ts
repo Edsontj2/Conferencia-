@@ -32,7 +32,7 @@ export interface Service {
   id: number;
   weekday: Weekday;
   lineId: number;
-  busId: number;
+  busId: number | null; // null = carro a definir
   startTime: string;
   endTime: string;
   shiftName: string;

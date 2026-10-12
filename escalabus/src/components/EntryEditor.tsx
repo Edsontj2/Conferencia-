@@ -74,8 +74,8 @@ export function EntryEditor({ initial, entries, ctx, catalog, historyCounts, onC
             const b = catalog.buses.find((x) => x.id === Number(ev.target.value));
             setE((x) => ({ ...x, busId: b?.id ?? null, busFleet: b?.fleetNumber ?? '', busPlate: b?.plate ?? '' }));
           }}>
-            <option value="">— selecione —</option>
-            {catalog.buses.filter((b) => b.active || b.id === e.busId).map((b) => <option key={b.id} value={b.id}>{b.fleetNumber} – {b.plate}{b.active ? '' : ' (inativo)'}</option>)}
+            <option value="">— a definir —</option>
+            {catalog.buses.filter((b) => b.active || b.id === e.busId).map((b) => <option key={b.id} value={b.id}>{b.fleetNumber}{b.plate ? ` – ${b.plate}` : ''}{b.active ? '' : ' (inativo)'}</option>)}
           </select>
         </Field>
         <Field label="Horário inicial"><input type="time" value={e.startTime} onChange={(ev) => set('startTime', ev.target.value)} /></Field>

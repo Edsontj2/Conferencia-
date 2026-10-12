@@ -1,7 +1,7 @@
-import { candidateProblem, entryInterval, entryTimesValid, indexConfirmed, ROLE_TEXT, type ProblemCode } from './rules';
-import { addDays, dayLabel, fmtDate, isSaturday, overlaps, sundayOf, weekdayOf } from './time';
-import type { AssignRole, Bus, ConfirmedWork, Entry, Line, Person, Service, Settings } from './types';
-import { roleOf } from './types';
+import { candidateProblem, entryInterval, entryTimesValid, indexConfirmed, ROLE_TEXT, type ProblemCode } from './rules.js';
+import { addDays, dayLabel, fmtDate, isSaturday, overlaps, sundayOf, weekdayOf } from './time.js';
+import type { AssignRole, Bus, ConfirmedWork, Entry, Line, Person, Service, Settings } from './types.js';
+import { roleOf } from './types.js';
 
 /** Gerador pseudoaleatório com semente (mulberry32), para sorteios reproduzíveis em testes. */
 export function rng(seed: number) {
@@ -39,15 +39,15 @@ export function buildSlotsFromServices(
   for (const s of services) {
     if (!s.active) continue;
     const l = lm.get(s.lineId);
-    const b = bm.get(s.busId);
     if (!l || !l.active) { skipped.push({ serviceId: s.id, reason: `linha ${l?.code ?? '?'} inativa ou inexistente` }); continue; }
-    if (!b || !b.active) { skipped.push({ serviceId: s.id, reason: `carro ${b?.fleetNumber ?? '?'} inativo ou inexistente` }); continue; }
+    const b = s.busId == null ? null : bm.get(s.busId);
+    if (s.busId != null && (!b || !b.active)) { skipped.push({ serviceId: s.id, reason: `carro ${b?.fleetNumber ?? '?'} inativo ou inexistente` }); continue; }
     entries.push({
       id: makeId(),
       date: s.weekday === 6 ? saturday : sundayOf(saturday),
       serviceId: s.id,
       lineId: l.id, lineCode: l.code, lineDescription: l.description,
-      busId: b.id, busFleet: b.fleetNumber, busPlate: b.plate,
+      busId: b?.id ?? null, busFleet: b?.fleetNumber ?? '', busPlate: b?.plate ?? '',
       startTime: s.startTime, endTime: s.endTime, shiftName: s.shiftName,
       driverId: null, driverName: '', conductorId: null, conductorName: '',
     });

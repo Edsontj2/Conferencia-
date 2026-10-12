@@ -169,12 +169,14 @@ export function EscalaPage() {
     const sun = sundayOf(saturday);
     const lines = new Map(catalog.lines.map((l) => [l.id, l]));
     const buses = new Map(catalog.buses.map((b) => [b.id, b]));
-    const entries: Entry[] = withTemplates ? catalog.services.filter((s) => s.active && lines.get(s.lineId)?.active && buses.get(s.busId)?.active).map((s) => ({
+    const entries: Entry[] = withTemplates ? catalog.services.filter((s) => s.active && lines.get(s.lineId)?.active && (s.busId == null || buses.get(s.busId)?.active)).map((s) => {
+      const bus = s.busId == null ? undefined : buses.get(s.busId);
+      return {
       id: newId(), date: s.weekday === 6 ? saturday : sun, serviceId: s.id,
       lineId: s.lineId, lineCode: lines.get(s.lineId)!.code, lineDescription: lines.get(s.lineId)!.description,
-      busId: s.busId, busFleet: buses.get(s.busId)!.fleetNumber, busPlate: buses.get(s.busId)!.plate,
+      busId: s.busId, busFleet: bus?.fleetNumber ?? '', busPlate: bus?.plate ?? '',
       startTime: s.startTime, endTime: s.endTime, shiftName: s.shiftName, driverId: null, driverName: '', conductorId: null, conductorName: '',
-    })).sort(compareEntries) : [];
+    }; }).sort(compareEntries) : [];
     setWorking({ entries, dirty: true, creating: true, fromProposal: false });
     setProposal(null);
   };

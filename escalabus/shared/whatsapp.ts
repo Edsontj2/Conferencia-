@@ -1,6 +1,6 @@
-import { buildReportDay } from './report';
-import { dayLabel, fmtDate } from './time';
-import type { Entry } from './types';
+import { buildReportDay } from './report.js';
+import { dayLabel, fmtDate } from './time.js';
+import type { Entry } from './types.js';
 
 /** Mantém somente dígitos do telefone. */
 export function normalizePhone(raw: string | null | undefined): string {

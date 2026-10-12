@@ -18,12 +18,15 @@ export function config() {
   return {
     port: Number(process.env.PORT ?? 3000),
     host: process.env.HOST ?? '0.0.0.0',
-    dataDir,
-    dbFile: path.join(dataDir, 'escalabus.db'),
-    demoDbFile: path.join(dataDir, 'escalabus-demo.db'),
-    backupDir: path.join(dataDir, 'backups'),
-    adminUsername: process.env.ADMIN_USERNAME ?? 'admin',
-    adminPassword: process.env.ADMIN_PASSWORD ?? '',
+    /** Supabase/Postgres. Vazio = Postgres embutido (PGlite) em DATA_DIR/pglite. */
+    databaseUrl: process.env.DATABASE_URL || '',
+    pgliteDir: path.join(dataDir, 'pglite'),
+    schemaPrefix: process.env.DB_SCHEMA || 'escalabus',
+    adminUsername: process.env.ADMIN_USERNAME || 'admin',
+    adminPassword: process.env.ADMIN_PASSWORD || '',
+    seedRealData: process.env.SEED_REAL_DATA !== 'false',
     secureCookies: process.env.COOKIE_SECURE === 'true' ? true : process.env.COOKIE_SECURE === 'false' ? false : undefined,
   };
 }
+
+export type Config = ReturnType<typeof config>;

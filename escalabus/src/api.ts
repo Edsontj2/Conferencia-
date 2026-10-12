@@ -1,5 +1,5 @@
 /**
- * Cliente da API. O banco de dados principal é o servidor (SQLite).
+ * Cliente da API. O banco de dados principal é o Postgres no servidor (Supabase).
  * O localStorage guarda apenas uma CÓPIA das últimas consultas, para leitura offline.
  */
 export class ApiError extends Error {

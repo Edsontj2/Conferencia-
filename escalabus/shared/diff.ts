@@ -1,5 +1,5 @@
-import { dayLabel, fmtDate } from './time';
-import type { Entry } from './types';
+import { dayLabel, fmtDate } from './time.js';
+import type { Entry } from './types.js';
 
 const FIELDS: [keyof Entry, string][] = [
   ['date', 'data'], ['lineCode', 'linha'], ['busFleet', 'carro'], ['startTime', 'início'], ['endTime', 'término'],

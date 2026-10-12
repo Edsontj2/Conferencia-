@@ -4,7 +4,8 @@ Sistema para gerar e administrar as escalas de **motoristas e cobradores aos sá
 
 * Frontend: React 19 + TypeScript (Vite), PWA (manifest, ícones, service worker).
 * Backend: Node.js + Express 5 + TypeScript.
-* Banco: **SQLite** persistente em arquivo, com migrations SQL.
+* Banco: **Postgres** — **Supabase** em produção; Postgres embutido (PGlite) para uso local e testes. Migrations versionadas.
+* Hospedagem: **Vercel** (frontend na CDN + API como função serverless) ou servidor próprio.
 * Regras e sorteio em `shared/`, usados **no navegador e no servidor**.
 
 Arquitetura, modelo de dados e algoritmo: [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
@@ -13,7 +14,7 @@ Arquitetura, modelo de dados e algoritmo: [`docs/ARQUITETURA.md`](docs/ARQUITETU
 
 ## 1. Instalação
 
-Requisitos: **Node.js 20 ou superior** (testado com 22) e npm. Em Linux sem binário pré-compilado do SQLite, o npm compila o `better-sqlite3` (precisa de `python3`, `make` e `g++`).
+Requisitos: **Node.js 20 ou superior** (testado com 22) e npm. Sem `DATABASE_URL`, o app usa um Postgres embutido em `data/pglite` (nada para instalar).
 
 ```bash
 cd escalabus
@@ -24,7 +25,7 @@ npm run build        # checagem de tipos + build do frontend/PWA
 npm start            # http://localhost:3000
 ```
 
-Na primeira execução, o servidor aplica as migrations, cria `data/escalabus.db` (dados reais), `data/escalabus-demo.db` (demonstração) e o administrador definido no `.env`. Depois de entrar, troque a senha em **Configurações** (ou rode `npm run create-admin`, que também serve para redefinir a senha ou criar outro administrador).
+Na primeira execução, o servidor aplica as migrations nos schemas `escalabus` (dados reais) e `escalabus_demo` (demonstração), cria o administrador definido no `.env` e importa as escalas reais transcritas do papel (`server/seed-data.ts`). Depois de entrar, troque a senha em **Configurações** (ou rode `npm run create-admin`, que também serve para redefinir a senha ou criar outro administrador).
 
 ### Comandos
 
@@ -70,7 +71,25 @@ Todos os dispositivos que acessam o **mesmo servidor** veem os mesmos dados.
 
 ---
 
-## 4. Hospedagem com HTTPS
+## 4. Produção na Vercel + Supabase (recomendado)
+
+**4.1 Supabase (banco)**
+1. Crie um projeto em https://supabase.com (região *South America (São Paulo)*). Guarde a senha do banco.
+2. Em **Project Settings → Database → Connection string**, copie a de **Transaction pooler** (porta `6543`) e troque `[YOUR-PASSWORD]` pela senha.
+3. Não é preciso criar tabelas: o app cria tudo sozinho no primeiro acesso, nos schemas `escalabus` e `escalabus_demo`. Esses schemas **não** ficam expostos pela API pública do Supabase (o app revoga o acesso dos papéis `anon`/`authenticated`).
+
+**4.2 Vercel (site + API)**
+1. Em https://vercel.com → **Add New → Project** → importe o repositório do GitHub.
+2. **Root Directory:** `escalabus`. O restante já vem do `vercel.json` (framework Vite, build `npm run build`, saída `dist`, API em `api/index.ts`).
+3. **Environment Variables:**
+   * `DATABASE_URL` = string do *Transaction pooler* do Supabase;
+   * `ADMIN_USERNAME` = `admin` (ou outro);
+   * `ADMIN_PASSWORD` = senha do primeiro acesso (mín. 8 caracteres; só é usada se ainda não houver administrador — depois troque em Configurações).
+4. **Deploy.** O endereço `https://<projeto>.vercel.app` já tem HTTPS: dá para instalar como app no celular e usar offline.
+
+Atualizações: cada `git push` no branch configurado gera um novo deploy automaticamente. Backup: exportação JSON em Configurações e os backups automáticos do Supabase.
+
+## 5. Servidor próprio com HTTPS
 
 ### Instalação automática (Linux + Tailscale)
 
@@ -81,7 +100,7 @@ curl -fsSL https://raw.githubusercontent.com/Edsontj2/Conferencia-/claude/escala
 sudo bash instalar.sh
 ```
 
-O script instala o Node.js 22 se necessário, baixa o código em `/opt/escalabus`, compila, cria o administrador (pede a senha no terminal), registra o serviço `escalabus` no systemd e, se o Tailscale estiver ativo, publica com HTTPS em `https://<servidor>.<tailnet>.ts.net` via `tailscale serve`. Os dados ficam em `/var/lib/escalabus`. Rodar o script de novo atualiza para a versão mais recente sem apagar dados. No painel do Tailscale, ative **MagicDNS** e **HTTPS Certificates**.
+O script instala o Node.js 22 se necessário, baixa o código em `/opt/escalabus`, compila, cria o administrador (pede a senha no terminal), registra o serviço `escalabus` no systemd e, se o Tailscale estiver ativo, publica com HTTPS em `https://<servidor>.<tailnet>.ts.net` via `tailscale serve`. Os dados ficam em `/var/lib/escalabus` (Postgres embutido) ou no Supabase, se `DATABASE_URL` for preenchida em `/etc/escalabus.env`. Rodar o script de novo atualiza para a versão mais recente sem apagar dados. No painel do Tailscale, ative **MagicDNS** e **HTTPS Certificates**.
 
 ### Instalação manual
 
@@ -122,17 +141,17 @@ WantedBy=multi-user.target
 
 Com **nginx**, use `proxy_pass http://127.0.0.1:3000;` e `proxy_set_header X-Forwarded-Proto $scheme;` com certificado do certbot. O app confia em um proxy (`trust proxy = 1`).
 
-**Backup do servidor:** copie periodicamente a pasta `DATA_DIR` (com o serviço parado, ou use `sqlite3 escalabus.db ".backup copia.db"`), além da exportação JSON em Configurações. Antes de cada importação o servidor grava automaticamente uma cópia em `DATA_DIR/backups/`.
+**Backup:** exportação JSON em Configurações; no banco local, copie a pasta `DATA_DIR` com o serviço parado. Antes de cada importação o app guarda uma cópia dos dados anteriores na tabela `backup_snapshots`.
 
 ---
 
-## 5. Testes
+## 6. Testes
 
 ```bash
 npm test
 ```
 
-Resultado da última execução (Vitest 5, Node 22): **5 arquivos, 53 testes, todos aprovados**; `npm run typecheck` e `npm run build` sem erros.
+Resultado da última execução (Vitest 5, Node 22): **5 arquivos, 55 testes, todos aprovados**, rodando sobre Postgres (PGlite); `npm run typecheck` e `npm run build` sem erros. O caminho de produção (driver `pg` + função da Vercel) também foi testado contra um PostgreSQL 16 com os papéis do Supabase.
 
 | Requisito | Teste |
 |---|---|
@@ -158,12 +177,13 @@ Além dos testes automatizados, o fluxo completo foi exercitado num Chromium rea
 
 ---
 
-## 6. Limitações reais
+## 7. Limitações reais
 
 * **WhatsApp (wa.me):** só abre a conversa com o texto pronto; o envio é confirmado pelo usuário. **Não anexa PDF** — use "Baixar PDF" ou "Compartilhar PDF" (Web Share API: Android/iOS recentes; em computadores costuma não existir). Textos muito longos podem não abrir completos: o app avisa e permite enviar por dia/turno ou copiar.
 * **Offline é somente leitura** e só mostra o que já foi carregado nesse aparelho (última escala aberta, cadastros, consultas de histórico feitas). O primeiro login exige conexão. O iOS pode apagar dados de sites não usados por semanas.
 * **PWA exige HTTPS** (fora de `localhost`). No iPhone não existe botão nativo de instalação; só pelo Safari, pelo menu Compartilhar.
-* **Um servidor, um arquivo SQLite:** ideal para uma garagem/empresa; não é para várias instâncias do servidor em paralelo. Faça backup da pasta de dados.
+* **Vercel (plano gratuito):** a primeira requisição depois de um tempo parado é mais lenta (inicialização da função e conexão ao Supabase). O Supabase gratuito pausa projetos sem uso por 7 dias.
+* **Dados importados do papel:** placas não constavam na escala (ficaram vazias); 3 serviços da tarde de domingo não tinham carro (aparecem como "a definir"); a disponibilidade de cada pessoa foi estimada pelo horário em que trabalhou (do início ao fim, arredondado à hora) — ajuste em Pessoas. Nomes foram mantidos como impressos (ex.: "ALEX OLIVERIA").
 * **Disponibilidade por pessoa** é uma janela diária fixa (início–fim). Folgas, férias ou ausências em datas específicas não são modeladas: inative a pessoa ou edite a escala.
 * **Rascunhos não bloqueiam uns aos outros**: dois rascunhos consecutivos podem usar a mesma pessoa; o conflito é barrado na **confirmação** da segunda escala (a regra conta apenas escalas confirmadas, como pedido).
 * **Atribuições antigas toleradas:** numa escala já salva, uma pessoa inativada ou com turno alterado depois não impede salvar edições de outras vagas; porém a **confirmação** de rascunho revalida tudo com o cadastro atual e pode ser recusada (o servidor lista o motivo).
