@@ -53,3 +53,15 @@ describe('conexão Supabase', () => {
       .toBe('postgres://u:p@aws-0-sa-east-1.pooler.supabase.com:6543/postgres');
   });
 });
+
+import { poolerCandidates } from '../server/db';
+describe('pooler do Supabase', () => {
+  it('gera endereços alternativos da mesma região', () => {
+    expect(poolerCandidates('postgres://u.ref:p@aws-0-us-east-1.pooler.supabase.com:6543/postgres')).toEqual([
+      'postgres://u.ref:p@aws-0-us-east-1.pooler.supabase.com:6543/postgres',
+      'postgres://u.ref:p@aws-1-us-east-1.pooler.supabase.com:6543/postgres',
+      'postgres://u.ref:p@aws-2-us-east-1.pooler.supabase.com:6543/postgres',
+    ]);
+    expect(poolerCandidates('postgres://u:p@localhost:5432/x')).toEqual(['postgres://u:p@localhost:5432/x']);
+  });
+});
