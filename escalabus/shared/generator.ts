@@ -1,4 +1,4 @@
-import { candidateProblem, entryInterval, entryTimesValid, indexConfirmed, ROLE_TEXT, type ProblemCode } from './rules.js';
+import { candidateProblem, entryInterval, entryTimesValid, indexConfirmed, isOutsideShift, ROLE_TEXT, type ProblemCode } from './rules.js';
 import { addDays, dayLabel, fmtDate, isSaturday, overlaps, sundayOf, weekdayOf } from './time.js';
 import type { AssignRole, Bus, ConfirmedWork, Entry, Line, Person, Service, Settings } from './types.js';
 import { roleOf } from './types.js';
@@ -64,7 +64,7 @@ export interface GenerateInput {
   entries: Entry[];
   people: Person[];
   otherConfirmed: ConfirmedWork[];
-  settings: Pick<Settings, 'maxServicesPerDay' | 'allowBothDays'>;
+  settings: Pick<Settings, 'maxServicesPerDay' | 'allowBothDays' | 'allowOutsideShift'>;
   /** Participações confirmadas no histórico por pessoa (prioriza quem tem menos). */
   historyCounts: Record<number, number>;
   seed?: number;
@@ -157,6 +157,13 @@ function solveRole(
 
   const assign: (number | null)[] = new Array(n).fill(undefined);
   const personSlots: number[][] = pool.map(() => []);
+  const outsideCache = new Map<string, number>();
+  const outside = (pi: number, i: number) => {
+    if (!input.settings.allowOutsideShift) return 0;
+    const k = `${pi}|${i}`;
+    if (!outsideCache.has(k)) outsideCache.set(k, iv[i] && isOutsideShift(entries[i], pool[pi]) ? 1 : 0);
+    return outsideCache.get(k)!;
+  };
   const load = pool.map((p) => input.historyCounts[p.id] ?? 0);
 
   const compatible = (pi: number, i: number): boolean => {
@@ -203,7 +210,8 @@ function solveRole(
     if (optimistic <= best) return;
 
     remaining.delete(pick);
-    pickOptions.sort((a, b) => load[a] - load[b] || rank.get(pool[a].id)! - rank.get(pool[b].id)!);
+    // Prioridade: quem está no próprio turno; depois quem tem menos participações; desempate aleatório.
+    pickOptions.sort((a, b) => outside(a, pick) - outside(b, pick) || load[a] - load[b] || rank.get(pool[a].id)! - rank.get(pool[b].id)!);
     for (const pi of pickOptions) {
       assign[pick] = pi;
       personSlots[pi].push(pick);
@@ -275,7 +283,7 @@ const REASON_TEXT: Record<ProblemCode, string> = {
 /** Explica, em português, por que ninguém pôde ocupar a vaga. */
 export function explainUnfilled(
   entry: Entry, role: AssignRole, people: Person[], all: Entry[],
-  confirmedIdx: Map<number, Set<string>>, settings: Pick<Settings, 'maxServicesPerDay' | 'allowBothDays'>,
+  confirmedIdx: Map<number, Set<string>>, settings: Pick<Settings, 'maxServicesPerDay' | 'allowBothDays' | 'allowOutsideShift'>,
 ): string[] {
   const roleName = ROLE_TEXT[role];
   const plural = role === 'driver' ? 'motoristas' : 'cobradores';

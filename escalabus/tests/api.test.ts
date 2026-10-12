@@ -206,6 +206,20 @@ describe('API', () => {
     await post(`/api/schedules/${s.id}/confirm`, { version: s.version }).expect(200);
   });
 
+  it('administrador apaga uma escala ou todo o histórico, com cópia de segurança', async () => {
+    const ids = await seedBasic();
+    const mkS = async (sat: string) => (await post('/api/schedules', { saturday: sat, entries: [mk(`x${sat}`, sat, '06:00', '12:00', { lineId: ids.l1, busId: ids.b1, driverId: ids.m1, conductorId: ids.c1 })] }).expect(201)).body;
+    const a = await mkS('2026-10-03'); await mkS('2026-10-17'); await mkS('2026-10-31');
+    await agent.delete(`/api/schedules/${a.id}`).set(H).expect(200);
+    expect((await agent.get('/api/schedules')).body).toHaveLength(2);
+    await post('/api/schedules/purge', { confirm: 'apagar' }).expect(400);
+    expect((await post('/api/schedules/purge', { confirm: 'APAGAR' }).expect(200)).body.deleted).toBe(2);
+    expect((await agent.get('/api/schedules')).body).toHaveLength(0);
+    expect((await agent.get('/api/catalog')).body.people).toHaveLength(4);
+    const snaps = await db.tx('real', (q) => q('SELECT reason FROM backup_snapshots'));
+    expect(snaps).toHaveLength(2);
+  });
+
   it('rejeita datas que não são sábado', async () => {
     expect((await agent.get('/api/weekend/2026-10-18')).status).toBe(400);
     expect((await post('/api/schedules/generate', { saturday: '2026-10-19' })).status).toBe(400);

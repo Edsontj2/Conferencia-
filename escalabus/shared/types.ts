@@ -50,6 +50,8 @@ export interface Settings {
   maxServicesPerDay: number;
   /** Permite a mesma pessoa no sábado e no domingo do mesmo fim de semana (padrão: não — um dia por fim de semana). */
   allowBothDays?: boolean;
+  /** Completa as vagas com pessoas fora do próprio turno (dobra) quando faltar gente; vira aviso, não bloqueio. */
+  allowOutsideShift?: boolean;
 }
 
 /**

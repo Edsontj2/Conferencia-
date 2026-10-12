@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Field, Modal } from './ui';
 import type { AssignRole, Entry, Person } from '../../shared/types';
-import { candidateProblem, validateSchedule, type RuleContext, indexConfirmed } from '../../shared/rules';
+import { candidateProblem, validateSchedule, type RuleContext, indexConfirmed, isOutsideShift } from '../../shared/rules';
 import { crossesMidnight, dayLabel, fmtDate, sundayOf } from '../../shared/time';
 import type { Catalog } from '../types';
 
@@ -17,8 +17,8 @@ export function personOptions(entry: Entry, role: AssignRole, entries: Entry[], 
     const keep = !!base && (role === 'driver' ? base.driverId : base.conductorId) === p.id &&
       base.date === entry.date && base.startTime === entry.startTime && base.endTime === entry.endTime;
     const pr = candidateProblem(entry, role, p, { settings: ctx.settings, confirmedIdx }, others, { skipCadastro: keep });
-    return { person: p, problem: pr?.text ?? null, count: historyCounts[p.id] ?? 0 };
-  }).sort((a, b) => Number(!!a.problem) - Number(!!b.problem) || a.count - b.count || a.person.name.localeCompare(b.person.name, 'pt-BR'));
+    return { person: p, problem: pr?.text ?? null, count: historyCounts[p.id] ?? 0, outside: !pr && isOutsideShift(entry, p) };
+  }).sort((a, b) => Number(!!a.problem) - Number(!!b.problem) || Number(a.outside) - Number(b.outside) || a.count - b.count || a.person.name.localeCompare(b.person.name, 'pt-BR'));
 }
 
 export function EntryEditor({ initial, entries, ctx, catalog, historyCounts, onClose, onApply }: {

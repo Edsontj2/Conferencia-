@@ -44,6 +44,21 @@ describe('geração aleatória', () => {
     }
   });
 
+  it('completa as vagas com dobra fora do turno quando configurado, preferindo quem está no turno', () => {
+    const slots = [entry(SAT, '06:00', '12:00', { busId: 1 }), entry(SAT, '13:00', '19:00', { busId: 2 })];
+    const people = [person(1, 'motorista', '05:00', '16:00'), person(3, 'cobrador', '05:00', '16:00'), person(4, 'cobrador', '11:00', '01:00')];
+    const strict = generateSchedule({ entries: slots, people, otherConfirmed: [], settings: { maxServicesPerDay: 2 }, historyCounts: {}, seed: 1 });
+    expect(strict.unfilled).toHaveLength(1);
+    const fill = generateSchedule({ entries: slots, people, otherConfirmed: [], settings: { maxServicesPerDay: 2, allowOutsideShift: true }, historyCounts: {}, seed: 1 });
+    expect(fill.unfilled).toEqual([]);
+    expect(fill.entries[1].conductorId).toBe(4); // cobrador da tarde preferido (no turno)
+    const issues = validateSchedule(fill.entries, {
+      saturday: SAT, ...buildContextMaps(people, [line(1)], [bus(1), bus(2)]), otherConfirmed: [], settings: { maxServicesPerDay: 2, allowOutsideShift: true },
+    });
+    expect(issues.filter((i) => i.severity === 'error')).toEqual([]);
+    expect(issues.some((i) => i.code === 'OUTSIDE_SHIFT' && i.severity === 'warning')).toBe(true);
+  });
+
   it('ignora serviços com linha ou ônibus inativos', () => {
     const r = buildSlotsFromServices(SAT, [service(1, 6, '05:00', '11:00', 1), service(2, 6, '05:00', '11:00', 2)], [line(1)], [bus(1), bus(2, false)], mkId);
     expect(r.entries).toHaveLength(1);

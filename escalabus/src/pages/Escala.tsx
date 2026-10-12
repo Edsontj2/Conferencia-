@@ -257,9 +257,9 @@ export function EscalaPage() {
       <select className={cls} value={value ?? ''} onChange={(ev) => setPerson(e, role, ev.target.value)} title={roleIssues.map((i) => i.message).join('\n')}>
         <option value="">— vaga aberta —</option>
         {value != null && !opts.some((o) => o.person.id === value) && <option value={value}>{name}</option>}
-        {opts.map(({ person: p, problem }) => (
+        {opts.map(({ person: p, problem, outside }) => (
           <option key={p.id} value={p.id} disabled={!!problem && p.id !== value}>
-            {p.name}{problem ? ` — ${problem}` : ''}
+            {p.name}{problem ? ` — ${problem}` : outside ? ' (fora do turno)' : ''}
           </option>
         ))}
       </select>
