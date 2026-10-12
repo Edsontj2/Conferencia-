@@ -34,7 +34,7 @@ export const listBuses = async (q: Q) => (await q('SELECT * FROM buses ORDER BY 
 export const listServices = async (q: Q) => (await q('SELECT * FROM services ORDER BY weekday DESC, start_time, id')).map(mapService);
 export const listRecipients = async (q: Q) => (await q('SELECT * FROM recipients ORDER BY lower(name), id')).map(mapRecipient);
 
-export const DEFAULT_SETTINGS: Settings = { companyName: 'Minha Empresa de Ônibus', maxServicesPerDay: 1 };
+export const DEFAULT_SETTINGS: Settings = { companyName: 'Minha Empresa de Ônibus', maxServicesPerDay: 1, allowBothDays: false };
 
 export async function getSettings(q: Q): Promise<Settings> {
   const rows = await q<{ key: string; value: string }>('SELECT key, value FROM settings');
@@ -42,6 +42,7 @@ export async function getSettings(q: Q): Promise<Settings> {
   for (const r of rows) {
     if (r.key === 'companyName') s.companyName = r.value;
     if (r.key === 'maxServicesPerDay') s.maxServicesPerDay = Math.max(1, Number(r.value) || 1);
+    if (r.key === 'allowBothDays') s.allowBothDays = r.value === 'true';
   }
   return s;
 }
@@ -50,6 +51,7 @@ export async function saveSettings(q: Q, s: Settings) {
   const sql = 'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value';
   await q(sql, ['companyName', s.companyName]);
   await q(sql, ['maxServicesPerDay', String(s.maxServicesPerDay)]);
+  await q(sql, ['allowBothDays', s.allowBothDays ? 'true' : 'false']);
 }
 
 /** Quantas vezes o id aparece em escalas (qualquer status) – usado para impedir exclusão que prejudique o histórico. */

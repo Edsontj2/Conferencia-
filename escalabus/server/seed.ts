@@ -122,7 +122,7 @@ async function applyDay(q: Q, day: SeedDay) {
   };
   // A escala em papel é o registro real: sobreposições de poucos minutos (rendição) são mantidas e avisadas no log.
   const errors = validateSchedule(all, ctx).filter((i) => i.severity === 'error');
-  const blocking = errors.filter((e) => e.code !== 'PERSON_OVERLAP');
+  const blocking = errors.filter((e) => e.code !== 'PERSON_OVERLAP' && e.code !== 'SAME_WEEKEND');
   if (blocking.length) throw new Error(`Dados de ${day.date} inválidos: ${blocking.map((e) => e.message).join(' | ')}`);
   if (errors.length) console.warn(`[seed ${day.date}] mantido como na escala em papel: ${[...new Set(errors.map((e) => e.message))].join(' | ')}`);
   if (!sched) {

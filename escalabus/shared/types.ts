@@ -48,6 +48,8 @@ export interface Recipient {
 export interface Settings {
   companyName: string;
   maxServicesPerDay: number;
+  /** Permite a mesma pessoa no sábado e no domingo do mesmo fim de semana (padrão: não — um dia por fim de semana). */
+  allowBothDays?: boolean;
 }
 
 /**

@@ -13,7 +13,7 @@ export interface RuleContext {
   buses: Map<number, Bus>;
   /** Participações em OUTRAS escalas confirmadas (normalmente ±7 dias do fim de semana). */
   otherConfirmed: ConfirmedWork[];
-  settings: Pick<Settings, 'maxServicesPerDay'>;
+  settings: Pick<Settings, 'maxServicesPerDay' | 'allowBothDays'>;
   /**
    * Versão já salva da escala. Atribuições que não mudaram (mesma pessoa, mesma vaga, mesmos horários)
    * não são reprovadas por mudanças posteriores no cadastro (pessoa inativada, turno alterado),
@@ -77,7 +77,7 @@ function isGrandfathered(e: Entry, role: AssignRole, baseline?: Map<string, Entr
   );
 }
 
-export type ProblemCode = 'ROLE' | 'PERSON_INACTIVE' | 'AVAILABILITY' | 'WEEKLY_PREV' | 'WEEKLY_NEXT' | 'PERSON_OVERLAP' | 'DAY_LIMIT';
+export type ProblemCode = 'ROLE' | 'PERSON_INACTIVE' | 'AVAILABILITY' | 'WEEKLY_PREV' | 'WEEKLY_NEXT' | 'PERSON_OVERLAP' | 'DAY_LIMIT' | 'SAME_WEEKEND';
 export interface Problem { code: ProblemCode; text: string }
 
 /**
@@ -108,6 +108,9 @@ export function candidateProblem(
     if (o.id === entry.id) continue;
     if (o.driverId !== person.id && o.conductorId !== person.id) continue;
     if (o.date === entry.date) sameDay++;
+    else if (!ctx.settings.allowBothDays) {
+      return { code: 'SAME_WEEKEND', text: `já está escalado(a) no ${safeDay(o.date).toLowerCase()} deste fim de semana (um dia por fim de semana)` };
+    }
     if (entryTimesValid(o) && overlaps(iv, entryInterval(o))) {
       return { code: 'PERSON_OVERLAP', text: `já escalado(a) em horário sobreposto (${safeDay(o.date).toLowerCase()} ${o.startTime}–${o.endTime})` };
     }
@@ -215,6 +218,15 @@ export function validateSchedule(entries: Entry[], ctx: RuleContext): Issue[] {
           issues.push({ code: 'PERSON_OVERLAP', severity, entryId: a.e.id, role: a.role, message: msg });
           issues.push({ code: 'PERSON_OVERLAP', severity, entryId: b.e.id, role: b.role, message: msg });
         }
+      }
+    }
+    // Um dia por fim de semana: quem trabalha no sábado não trabalha no domingo seguinte (e vice-versa)
+    if (!ctx.settings.allowBothDays) {
+      const days = new Set(valid.map((x) => x.e.date));
+      if (days.size > 1) {
+        const pre = valid.every((x) => isGrandfathered(x.e, x.role, baseline));
+        const msg = `${name} está escalado(a) no sábado e no domingo do mesmo fim de semana (a regra é um dia por fim de semana).${pre ? ' (já existia na escala salva)' : ''}`;
+        for (const x of valid) issues.push({ code: 'SAME_WEEKEND', severity: pre ? 'warning' : 'error', entryId: x.e.id, role: x.role, message: msg });
       }
     }
     const perDay = new Map<string, { e: Entry; role: AssignRole }[]>();

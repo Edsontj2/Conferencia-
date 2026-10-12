@@ -64,7 +64,7 @@ export interface GenerateInput {
   entries: Entry[];
   people: Person[];
   otherConfirmed: ConfirmedWork[];
-  settings: Pick<Settings, 'maxServicesPerDay'>;
+  settings: Pick<Settings, 'maxServicesPerDay' | 'allowBothDays'>;
   /** Participações confirmadas no histórico por pessoa (prioriza quem tem menos). */
   historyCounts: Record<number, number>;
   seed?: number;
@@ -163,6 +163,7 @@ function solveRole(
     let sameDay = 0;
     for (const j of personSlots[pi]) {
       if (entries[j].date === entries[i].date) sameDay++;
+      else if (!input.settings.allowBothDays) return false; // um dia por fim de semana
       if (overlaps(iv[i]!, iv[j]!)) return false;
     }
     return sameDay < maxDay;
@@ -268,12 +269,13 @@ const REASON_TEXT: Record<ProblemCode, string> = {
   WEEKLY_NEXT: 'já confirmado(a) no mesmo dia da semana seguinte',
   PERSON_OVERLAP: 'já escalado(a) em horário sobreposto nesta escala',
   DAY_LIMIT: 'já atingiu o limite de serviços no dia',
+  SAME_WEEKEND: 'já escalado(a) no outro dia deste fim de semana',
 };
 
 /** Explica, em português, por que ninguém pôde ocupar a vaga. */
 export function explainUnfilled(
   entry: Entry, role: AssignRole, people: Person[], all: Entry[],
-  confirmedIdx: Map<number, Set<string>>, settings: Pick<Settings, 'maxServicesPerDay'>,
+  confirmedIdx: Map<number, Set<string>>, settings: Pick<Settings, 'maxServicesPerDay' | 'allowBothDays'>,
 ): string[] {
   const roleName = ROLE_TEXT[role];
   const plural = role === 'driver' ? 'motoristas' : 'cobradores';

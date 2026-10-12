@@ -14,6 +14,7 @@ export function ConfiguracoesPage() {
   const { catalog, reloadCatalog, toast, online, me, switchMode, refreshMe } = useApp();
   const [company, setCompany] = useState<string | null>(null);
   const [limit, setLimit] = useState<number | null>(null);
+  const [both, setBoth] = useState<boolean | null>(null);
   const [rec, setRec] = useState<Partial<Recipient> | null>(null);
   const [imp, setImp] = useState<{ data: unknown; check: BackupCheck; name: string } | null>(null);
   const [ios, setIos] = useState(false);
@@ -23,8 +24,8 @@ export function ConfiguracoesPage() {
 
   const saveSettings = async () => {
     try {
-      await send('PUT', '/api/settings', { companyName: (company ?? s.companyName).trim(), maxServicesPerDay: limit ?? s.maxServicesPerDay });
-      toast('Configurações salvas.'); setCompany(null); setLimit(null); await reloadCatalog();
+      await send('PUT', '/api/settings', { companyName: (company ?? s.companyName).trim(), maxServicesPerDay: limit ?? s.maxServicesPerDay, allowBothDays: both ?? !!s.allowBothDays });
+      toast('Configurações salvas.'); setCompany(null); setLimit(null); setBoth(null); await reloadCatalog();
     } catch (e) { toast((e as Error).message, 'err'); }
   };
 
@@ -50,7 +51,12 @@ export function ConfiguracoesPage() {
             <input type="number" min={1} max={5} value={limit ?? s.maxServicesPerDay} onChange={(e) => setLimit(Math.max(1, Math.min(5, Number(e.target.value) || 1)))} />
           </Field>
         </div>
-        <button className="btn btn-primary" disabled={!online || (company === null && limit === null)} onClick={() => void saveSettings()}>Salvar</button>
+        <label className="check" style={{ margin: '.9rem 0' }}>
+          <input type="checkbox" checked={both ?? !!s.allowBothDays} onChange={(e) => setBoth(e.target.checked)} />
+          Permitir a mesma pessoa no sábado e no domingo do mesmo fim de semana
+        </label>
+        <p className="muted small" style={{ marginTop: '-.5rem' }}>Desmarcado (padrão): um dia por fim de semana, alternando — quem trabalha no sábado não trabalha no domingo seguinte nem no próximo sábado.</p>
+        <button className="btn btn-primary" disabled={!online || (company === null && limit === null && both === null)} onClick={() => void saveSettings()}>Salvar</button>
       </section>
 
       <section className="card">
