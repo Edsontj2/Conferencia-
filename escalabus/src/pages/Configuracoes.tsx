@@ -113,6 +113,7 @@ export function ConfiguracoesPage() {
       </section>
 
       {me?.isAdmin && <UsersSection />}
+      {me?.isAdmin && me.mode === 'real' && <EmployeesSection />}
 
       <section className="card" id="minha-senha">
         <h2>Minha senha ({me?.username})</h2>
@@ -273,6 +274,64 @@ function PurgeSection() {
           } catch (e) { toast((e as Error).message, 'err'); } finally { setBusy(false); }
         }}>Apagar todo o histórico de escalas</button>
       </div>
+    </section>
+  );
+}
+
+interface EmpRow { id: number; phone: string; fullName: string; personId: number | null; personName: string | null; role: string | null; createdAt: string; lastLoginAt: string | null }
+
+/** Acessos do app da equipe (login por telefone): vínculo com a pessoa, nova senha e exclusão. */
+function EmployeesSection() {
+  const { toast, online, catalog } = useApp();
+  const [rows, setRows] = useState<EmpRow[] | null>(null);
+  const [resetFor, setResetFor] = useState<EmpRow | null>(null);
+  const [newPw, setNewPw] = useState('');
+  const link = `${window.location.origin}/func/`;
+  const load = async () => { try { setRows(await get<EmpRow[]>('/api/employees')); } catch (e) { toast((e as Error).message, 'err'); } };
+  useEffect(() => { void load(); }, []); // eslint-disable-line
+  const act = async (fn: () => Promise<unknown>, ok: string) => { try { await fn(); toast(ok); await load(); } catch (e) { toast((e as Error).message, 'err'); } };
+  const taken = new Set((rows ?? []).map((r) => r.personId).filter((x): x is number => x != null));
+  return (
+    <section className="card">
+      <h2>Acessos da equipe (app dos funcionários)</h2>
+      <p className="muted small">Os funcionários se cadastram sozinhos no app da equipe com nome, telefone e senha. O sistema reconhece o nome e vincula à pessoa da escala (o telefone vai para o cadastro dela). Aqui você confere e corrige os vínculos.</p>
+      <div className="actionbar">
+        <code className="func-link">{link}</code>
+        <button className="btn btn-sm" onClick={async () => { try { await navigator.clipboard.writeText(link); toast('Link copiado.'); } catch { toast(link); } }}>Copiar link</button>
+        <a className="btn btn-sm btn-whatsapp" target="_blank" rel="noopener noreferrer" href={`https://wa.me/?text=${encodeURIComponent(`Consulte sua escala no app da equipe: ${link}\nNo primeiro acesso, toque em "Primeiro acesso" e cadastre seu nome completo, telefone e senha.`)}`}>Enviar link pelo WhatsApp</a>
+      </div>
+      {!rows ? <p>Carregando…</p> : rows.length === 0 ? <Empty>Nenhum funcionário cadastrado ainda.</Empty> : (
+        <div className="table-wrap"><table className="table">
+          <thead><tr><th>Nome digitado</th><th>Telefone</th><th>Vinculado a</th><th>Último acesso</th><th></th></tr></thead>
+          <tbody>{rows.map((r) => (
+            <tr key={r.id}>
+              <td>{r.fullName}</td>
+              <td className="nowrap">{formatPhone(r.phone)}</td>
+              <td>
+                <select value={r.personId ?? ''} disabled={!online} onChange={(e) => void act(() => send('PUT', `/api/employees/${r.id}`, { personId: e.target.value ? Number(e.target.value) : null }), 'Vínculo atualizado.')}>
+                  <option value="">— não vinculado —</option>
+                  {(catalog?.people ?? []).filter((p) => p.id === r.personId || (!taken.has(p.id) && p.active)).map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.role === 'motorista' ? 'Mot.' : 'Cob.'})</option>
+                  ))}
+                </select>
+              </td>
+              <td className="nowrap">{r.lastLoginAt ? fmtDateTime(r.lastLoginAt) : '—'}</td>
+              <td className="actions">
+                <button className="btn btn-sm" disabled={!online} onClick={() => { setResetFor(r); setNewPw(''); }}>Nova senha</button>
+                <button className="btn btn-sm btn-danger-ghost" disabled={!online} onClick={() => { if (confirm(`Excluir o acesso de ${r.fullName}?`)) void act(() => send('DELETE', `/api/employees/${r.id}`), 'Acesso excluído.'); }}>Excluir</button>
+              </td>
+            </tr>
+          ))}</tbody>
+        </table></div>
+      )}
+      {resetFor && (
+        <Modal title={`Nova senha para ${resetFor.fullName}`} onClose={() => setResetFor(null)} footer={<>
+          <button className="btn" onClick={() => setResetFor(null)}>Cancelar</button>
+          <button className="btn btn-primary" disabled={newPw.length < 6 || !online} onClick={() => { const r = resetFor; setResetFor(null); void act(() => send('POST', `/api/employees/${r.id}/password`, { password: newPw }), 'Senha redefinida. Informe ao funcionário.'); }}>Salvar senha</button>
+        </>}>
+          <Field label="Nova senha (mín. 6)"><input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} autoComplete="new-password" /></Field>
+        </Modal>
+      )}
     </section>
   );
 }
