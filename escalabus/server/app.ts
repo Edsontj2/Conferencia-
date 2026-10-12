@@ -14,6 +14,7 @@ import {
 import { exportBackup, importBackup, validateBackup } from './backup.js';
 import { ensureDemoSeeded, seedDemo } from './demo.js';
 import { applySeeds } from './seed.js';
+import { registerEmployeeAdminRoutes, registerEmployeeRoutes } from './employees.js';
 import { isSaturday, isValidDate, isValidHM } from '../shared/time.js';
 import { serviceBusConflicts } from '../shared/rules.js';
 import { phoneProblem, normalizePhone } from '../shared/whatsapp.js';
@@ -170,6 +171,9 @@ export function createApp(opts: AppOptions) {
     res.json(meOf(a));
   });
 
+  // App dos funcionários: rotas próprias (login por telefone), antes da autenticação do painel
+  registerEmployeeRoutes(app, db, secure, parse);
+
   app.use('/api', async (req: Request, res: Response, next: NextFunction) => {
     const a = await real((q) => sessionFrom(q, req));
     if (!a) { res.status(401).json({ error: 'Sessão expirada ou inexistente. Entre novamente.' }); return; }
@@ -196,6 +200,8 @@ export function createApp(opts: AppOptions) {
     });
     res.json({ ok: true });
   });
+
+  registerEmployeeAdminRoutes(app, db, (req) => A(req).auth.isAdmin, parse);
 
   /* ---------- usuários e acessos (somente administradores) ---------- */
   const adminOnly = (req: Request) => { if (!A(req).auth.isAdmin) throw new HttpError(403, 'Somente administradores podem gerenciar usuários.'); };
@@ -570,6 +576,10 @@ export function createApp(opts: AppOptions) {
         else if (file.includes(`${path.sep}assets${path.sep}`)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       },
     }));
+    app.get(/^\/func(\/.*)?$/, (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.sendFile(path.join(dir, 'func', 'index.html'));
+    });
     app.get(/^(?!\/api\/).*/, (_req, res) => {
       res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(dir, 'index.html'));

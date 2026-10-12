@@ -311,3 +311,62 @@ describe('usuários e acessos', () => {
     await db.close();
   });
 });
+
+describe('app dos funcionários', () => {
+  it('cadastro por telefone reconhece o nome, vincula a pessoa e mostra só escalas confirmadas', async () => {
+    const d = await openDatabase();
+    const opts = { db: d, secureCookies: false, seedRealData: true, initialAdmin: { username: 'admin', password: 'senha-segura-123' } };
+    await prepareDatabase(opts);
+    const app = createApp(opts);
+    const f = request.agent(app);
+    // nome com acento/grafia diferente da escala em papel ("HENRRIQUE GRECCO")
+    const r = (await f.post('/api/func/register').set(H).send({ phone: '(61) 98888-1111', name: 'Henrique Grecco', password: 'minha-senha' }).expect(201)).body;
+    expect(r.person).toMatchObject({ name: 'HENRRIQUE GRECCO', role: 'motorista' });
+    const me = (await f.get('/api/func/me').expect(200)).body;
+    expect(me.phone).toBe('5561988881111');
+    // telefone gravado no cadastro da pessoa
+    const adm = request.agent(app);
+    await adm.post('/api/auth/login').set(H).send({ username: 'admin', password: 'senha-segura-123' }).expect(200);
+    const person = (await adm.get('/api/catalog')).body.people.find((p: { id: number }) => p.id === r.person.id);
+    expect(person.whatsapp).toBe('5561988881111');
+    // escalas: só confirmadas; a de 10/10 inclui o funcionário
+    const list = (await f.get('/api/func/schedules').expect(200)).body;
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ saturday: '2026-10-10', mine: 2 });
+    const det = (await f.get(`/api/func/schedules/${list[0].id}`).expect(200)).body;
+    expect(det.entries).toHaveLength(112);
+    // rascunho não aparece
+    const g = (await adm.post('/api/schedules/generate').set(H).send({ saturday: '2026-10-17', seed: 1 })).body;
+    const draft = (await adm.post('/api/schedules').set(H).send({ saturday: '2026-10-17', entries: g.entries }).expect(201)).body;
+    expect((await f.get('/api/func/schedules')).body).toHaveLength(1);
+    await f.get(`/api/func/schedules/${draft.id}`).expect(404);
+    // sessão de funcionário não acessa o painel administrativo
+    await f.get('/api/catalog').expect(401);
+    // mesmo telefone não cadastra de novo; a mesma pessoa não é vinculada duas vezes
+    await request(app).post('/api/func/register').set(H).send({ phone: '61988881111', name: 'Outra Pessoa', password: '123456' }).expect(409);
+    const dup = (await request(app).post('/api/func/register').set(H).send({ phone: '61977772222', name: 'Henrique Grecco', password: '123456' }).expect(201)).body;
+    expect(dup.person).toBeNull();
+    // login por telefone em qualquer formato
+    await request(app).post('/api/func/login').set(H).send({ phone: '+55 61 98888-1111', password: 'errada' }).expect(401);
+    await request(app).post('/api/func/login').set(H).send({ phone: '61 98888-1111', password: 'minha-senha' }).expect(200);
+    // admin vê, desvincula e exclui
+    const emps = (await adm.get('/api/employees').expect(200)).body;
+    expect(emps).toHaveLength(2);
+    await adm.put(`/api/employees/${emps.find((e: { personId: number | null }) => e.personId).id}`).set(H).send({ personId: null }).expect(200);
+    await adm.delete(`/api/employees/${emps[0].id}`).set(H).expect(200);
+    await d.close();
+  }, 30000);
+
+  it('nome ambíguo pede para escolher entre as opções', async () => {
+    const d = await openDatabase();
+    const opts = { db: d, secureCookies: false, seedRealData: true, initialAdmin: { username: 'admin', password: 'senha-segura-123' } };
+    await prepareDatabase(opts);
+    const app = createApp(opts);
+    const r1 = (await request(app).post('/api/func/register').set(H).send({ phone: '61966665555', name: 'Paulo Henrique Oliveira', password: '123456' }).expect(200)).body;
+    expect(r1.choose.map((c: { name: string }) => c.name)).toEqual(expect.arrayContaining(['PAULO HENRRIQUE', 'PAULO OLIVEIRA']));
+    const pick = r1.choose.find((c: { name: string }) => c.name === 'PAULO OLIVEIRA');
+    const r2 = (await request(app).post('/api/func/register').set(H).send({ phone: '61966665555', name: 'Paulo Henrique Oliveira', password: '123456', personId: pick.id }).expect(201)).body;
+    expect(r2.person.name).toBe('PAULO OLIVEIRA');
+    await d.close();
+  }, 30000);
+});

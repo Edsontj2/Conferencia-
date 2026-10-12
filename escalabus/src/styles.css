@@ -429,3 +429,5 @@ details.alert summary::marker { color: currentColor; }
 
 .danger-zone { border-color: #fecaca; }
 .danger-zone h2 { color: var(--err); }
+
+.func-link { background: #f1f5f9; border: 1px solid var(--line); border-radius: 8px; padding: .45rem .7rem; font-size: .88rem; align-self: center; }
