@@ -5,7 +5,7 @@
   "description": "EscalaBus - escalas de motoristas e cobradores aos sábados e domingos",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
