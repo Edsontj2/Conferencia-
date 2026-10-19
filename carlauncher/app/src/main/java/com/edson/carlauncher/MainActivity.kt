@@ -37,12 +37,16 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.BaseAdapter
+import android.widget.EditText
 import android.widget.GridView
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import kotlin.random.Random
 
 class MainActivity : Activity() {
@@ -70,6 +74,17 @@ class MainActivity : Activity() {
     // Status
     private lateinit var battery: TextView
     private lateinit var btIcon: ImageView
+
+    // Telas
+    private lateinit var homeScreen: View
+    private lateinit var dashScreen: View
+    private lateinit var railClock: View
+    private lateinit var btnHome: View
+    private lateinit var btnDash: View
+    private lateinit var homeDate: TextView
+    private lateinit var homeGreeting: TextView
+    private lateinit var homeBattery: TextView
+    private lateinit var homeBt: ImageView
 
     // Camadas
     private lateinit var idleLayer: View
@@ -111,16 +126,31 @@ class MainActivity : Activity() {
         idleContent = findViewById(R.id.idleContent)
         idleInfo = findViewById(R.id.idleInfo)
         appsLayer = findViewById(R.id.appsLayer)
+        homeScreen = findViewById(R.id.homeScreen)
+        dashScreen = findViewById(R.id.dashScreen)
+        railClock = findViewById(R.id.railClock)
+        btnHome = findViewById(R.id.btnHome)
+        btnDash = findViewById(R.id.btnDash)
+        homeDate = findViewById(R.id.homeDate)
+        homeGreeting = findViewById(R.id.homeGreeting)
+        homeBattery = findViewById(R.id.homeBattery)
+        homeBt = findViewById(R.id.homeBt)
 
         art.clipToOutline = true
         trackTitle.isSelected = true // ativa o letreiro (marquee)
 
         // Barra lateral
-        findViewById<View>(R.id.btnHome).setOnClickListener { closeOverlays() }
-        findViewById<View>(R.id.btnNav).setOnClickListener { openWaze(null) }
-        findViewById<View>(R.id.btnMusic).setOnClickListener { openYtMusic() }
-        findViewById<View>(R.id.btnApps).setOnClickListener { showApps() }
+        btnHome.setOnClickListener { closeOverlays(); showScreen(false) }
+        btnDash.setOnClickListener { closeOverlays(); showScreen(true) }
         findViewById<View>(R.id.btnSettings).setOnClickListener { showSettings() }
+
+        // Tela inicial
+        findViewById<View>(R.id.tileNav).setOnClickListener { openWaze(null) }
+        findViewById<View>(R.id.tileMusic).setOnClickListener { openYtMusic() }
+        findViewById<View>(R.id.tilePhone).setOnClickListener { openPhone() }
+        findViewById<View>(R.id.tileApps).setOnClickListener { showApps() }
+        findViewById<View>(R.id.homeSettings).setOnClickListener { showSettings() }
+        showScreen(false)
 
         // Navegação
         findViewById<View>(R.id.navCard).setOnClickListener { openWaze(null) }
@@ -169,6 +199,7 @@ class MainActivity : Activity() {
         registerReceiver(statusReceiver, filter)
         startGps()
         connectMedia()
+        updateHomeTexts()
         handler.post(ticker)
         scheduleIdle()
     }
@@ -197,8 +228,9 @@ class MainActivity : Activity() {
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        // Botão "home" apertado com o painel já aberto
+        // Botão "home" apertado com o launcher já aberto: volta à tela inicial
         closeOverlays()
+        showScreen(false)
     }
 
     @Deprecated("Deprecated in Java")
@@ -235,6 +267,29 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun showScreen(dash: Boolean) {
+        homeScreen.visibility = if (dash) View.GONE else View.VISIBLE
+        dashScreen.visibility = if (dash) View.VISIBLE else View.GONE
+        railClock.visibility = if (dash) View.VISIBLE else View.INVISIBLE
+        btnHome.setBackgroundResource(if (dash) R.drawable.bg_btn else R.drawable.bg_btn_selected)
+        btnDash.setBackgroundResource(if (dash) R.drawable.bg_btn_selected else R.drawable.bg_btn)
+    }
+
+    private fun updateHomeTexts() {
+        val now = Calendar.getInstance()
+        val ptBr = Locale("pt", "BR")
+        val date = SimpleDateFormat("EEEE, d 'de' MMMM", ptBr).format(now.time)
+        homeDate.text = date.replaceFirstChar { it.titlecase(ptBr) }
+        val hour = now.get(Calendar.HOUR_OF_DAY)
+        val hello = when {
+            hour in 5..11 -> "Bom dia"
+            hour in 12..17 -> "Boa tarde"
+            else -> "Boa noite"
+        }
+        val name = prefs.getString(PREF_NAME, "Edson").orEmpty().trim()
+        homeGreeting.text = if (name.isEmpty()) "$hello." else "$hello, $name."
+    }
+
     private fun closeOverlays() {
         appsLayer.visibility = View.GONE
         exitIdle()
@@ -247,6 +302,7 @@ class MainActivity : Activity() {
         override fun run() {
             updateProgress()
             tickCount++
+            if (tickCount % 20 == 0) updateHomeTexts()
             if (tickCount % 5 == 0) checkGpsTimeout()
             if (idleLayer.visibility == View.VISIBLE) {
                 updateIdleInfo()
@@ -573,6 +629,12 @@ class MainActivity : Activity() {
         audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, AudioManager.FLAG_SHOW_UI)
     }
 
+    private fun openPhone() {
+        if (!safeStart(Intent(Intent.ACTION_DIAL))) {
+            Toast.makeText(this, "Telefone não encontrado", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun openYtMusic() {
         val intent = packageManager.getLaunchIntentForPackage(YT_MUSIC)
         if (intent == null) {
@@ -595,6 +657,7 @@ class MainActivity : Activity() {
                 if (level >= 0 && scale > 0) {
                     val pct = level * 100 / scale
                     battery.text = if (plugged) "⚡ $pct%" else "$pct%"
+                    homeBattery.text = battery.text
                 }
             }
             updateBluetooth()
@@ -609,6 +672,7 @@ class MainActivity : Activity() {
             false
         }
         btIcon.visibility = if (on) View.VISIBLE else View.GONE
+        homeBt.visibility = btIcon.visibility
     }
 
     // ---------------------------------------------------------------- gaveta de apps
@@ -681,6 +745,7 @@ class MainActivity : Activity() {
             "Permitir controle de música e Waze" + if (hasNotificationAccess()) "  ✓" else "",
             "Permitir GPS (velocímetro)" + if (hasLocationPermission()) "  ✓" else "",
             "Modo relógio: " + idleLabel(idleSecs),
+            "Seu nome (saudação): " + prefs.getString(PREF_NAME, "Edson"),
             "Tela sempre ligada: " + if (keepOn) "Sim" else "Não",
             "Usar como tela inicial do celular",
             "Liberar configurações restritas (Android 13+)",
@@ -693,18 +758,35 @@ class MainActivity : Activity() {
                     0 -> openNotificationAccess()
                     1 -> requestLocation()
                     2 -> chooseIdle()
-                    3 -> {
+                    3 -> editName()
+                    4 -> {
                         prefs.edit().putBoolean(PREF_KEEP_ON, !keepOn).apply()
                         applyKeepScreenOn()
                     }
-                    4 -> {
+                    5 -> {
                         if (!safeStart(Intent(Settings.ACTION_HOME_SETTINGS))) safeStart(Intent(Settings.ACTION_SETTINGS))
                     }
-                    5 -> openAppDetails(packageName)
-                    6 -> safeStart(Intent(Settings.ACTION_SETTINGS))
+                    6 -> openAppDetails(packageName)
+                    7 -> safeStart(Intent(Settings.ACTION_SETTINGS))
                 }
             }
             .setNegativeButton("Fechar", null)
+            .show()
+    }
+
+    private fun editName() {
+        val input = EditText(this)
+        input.setText(prefs.getString(PREF_NAME, "Edson"))
+        input.setSingleLine()
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setTitle("Seu nome")
+            .setView(input)
+            .setPositiveButton("Salvar") { _, _ ->
+                prefs.edit().putString(PREF_NAME, input.text.toString().trim()).apply()
+                updateHomeTexts()
+                hideSystemBars()
+            }
+            .setNegativeButton("Cancelar", null)
             .show()
     }
 
@@ -794,6 +876,7 @@ class MainActivity : Activity() {
         const val YT_MUSIC = "com.google.android.apps.youtube.music"
         const val PREF_IDLE = "idle_seconds"
         const val PREF_KEEP_ON = "keep_screen_on"
+        const val PREF_NAME = "user_name"
         const val PREF_ASKED_NOTIF = "asked_notification_access"
         const val REQ_LOCATION = 1
     }
