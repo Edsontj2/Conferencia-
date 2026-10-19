@@ -683,6 +683,7 @@ class MainActivity : Activity() {
             "Modo relógio: " + idleLabel(idleSecs),
             "Tela sempre ligada: " + if (keepOn) "Sim" else "Não",
             "Usar como tela inicial do celular",
+            "Liberar configurações restritas (Android 13+)",
             "Configurações do Android"
         )
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
@@ -699,7 +700,8 @@ class MainActivity : Activity() {
                     4 -> {
                         if (!safeStart(Intent(Settings.ACTION_HOME_SETTINGS))) safeStart(Intent(Settings.ACTION_SETTINGS))
                     }
-                    5 -> safeStart(Intent(Settings.ACTION_SETTINGS))
+                    5 -> openAppDetails(packageName)
+                    6 -> safeStart(Intent(Settings.ACTION_SETTINGS))
                 }
             }
             .setNegativeButton("Fechar", null)
@@ -735,8 +737,11 @@ class MainActivity : Activity() {
                 .setMessage(
                     "Para mostrar a música do YouTube Music (capa, nome, tempo), controlar " +
                             "play/pause e exibir as instruções do Waze, permita o acesso às " +
-                            "notificações para o \"Painel do Carro\" na próxima tela."
+                            "notificações para o \"Painel do Carro\" na próxima tela.\n\n" +
+                            "Se a opção estiver bloqueada (Android 13+/Samsung): toque em " +
+                            "\"Liberar\", depois no menu ⋮ e em \"Permitir configurações restritas\"."
                 )
+                .setNeutralButton("Liberar") { _, _ -> openAppDetails(packageName) }
                 .setPositiveButton("Permitir") { _, _ -> openNotificationAccess() }
                 .setNegativeButton("Agora não", null)
                 .show()

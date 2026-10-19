@@ -18,6 +18,12 @@ Transforma um celular antigo em central multimídia do carro:
 2. No celular, permita "instalar apps de fontes desconhecidas" e abra o APK.
 3. Abra o **Painel do Carro**, permita **localização** e o **acesso às notificações**
    (é isso que permite controlar o YouTube Music e ler as instruções do Waze).
+   - **Samsung / Android 13 ou mais novo:** se o acesso às notificações aparecer bloqueado
+     ("configuração restrita"), vá em *Configurações → Aplicativos → Painel do Carro*,
+     toque no menu **⋮** (canto superior direito) → **Permitir configurações restritas**
+     e depois ative o acesso às notificações. No app: ⚙ Ajustes → "Liberar configurações restritas".
+   - No Samsung, vale também em *Bateria* do app marcar **Sem restrições**, para o
+     Android não fechar o painel em segundo plano.
 4. Aperte o botão *home* do celular e escolha **Painel do Carro → Sempre**
    (ou em ⚙ Ajustes → "Usar como tela inicial do celular").
 
