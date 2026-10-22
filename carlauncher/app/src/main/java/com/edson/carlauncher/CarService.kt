@@ -213,6 +213,8 @@ class CarService : Service() {
         val kmh = Math.round(mps * 3.6f)
         SpeedState.setSpeed(kmh)
         SpeedState.setLocation(loc.latitude, loc.longitude, if (loc.hasBearing() && kmh >= 3) loc.bearing else null)
+        // Limite da via: só consulta com a tela acesa (ninguém vê com ela apagada)
+        if (power.isInteractive) SpeedLimit.onLocation(loc.latitude, loc.longitude, kmh)
 
         if (kmh >= MOVING_KMH) {
             movingFixes++
@@ -500,5 +502,5 @@ object Prefs {
     const val CAR_MODE_ON_WAKE = "car_mode_on_wake"
     const val SPEED_LIMIT = "speed_limit"
     const val WAZE_WINDOW = "waze_window"
-    const val HEADING_UP = "heading_up"
+    const val AUTO_WAZE = "auto_waze"
 }

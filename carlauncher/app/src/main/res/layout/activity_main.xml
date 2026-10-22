@@ -11,7 +11,7 @@
         android:orientation="horizontal"
         android:padding="10dp">
 
-        <!-- Barra lateral: hora, apps do carro e gaveta -->
+        <!-- Barra lateral -->
         <LinearLayout
             android:layout_width="72dp"
             android:layout_height="match_parent"
@@ -74,14 +74,6 @@
                 style="@style/RailApp"
                 android:contentDescription="Telefone" />
 
-            <ImageView
-                android:id="@+id/railCar"
-                style="@style/RailApp"
-                android:background="@drawable/bg_tile_dark"
-                android:contentDescription="Waze em tela cheia com música"
-                android:padding="12dp"
-                android:src="@drawable/ic_car" />
-
             <View
                 android:layout_width="1dp"
                 android:layout_height="0dp"
@@ -97,203 +89,12 @@
                 android:src="@drawable/ic_dots" />
         </LinearLayout>
 
-        <!-- Mapa -->
-        <FrameLayout
-            android:id="@+id/mapCard"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="10dp"
-            android:layout_weight="1.25"
-            android:background="@drawable/bg_card_round">
-
-            <FrameLayout
-                android:id="@+id/mapHost"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent" />
-
-            <!-- Seta da sua posição (o mapa fica sempre centralizado em você) -->
-            <ImageView
-                android:id="@+id/meArrow"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_gravity="center"
-                android:src="@drawable/ic_me" />
-
-            <TextView
-                android:id="@+id/mapStatus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginTop="44dp"
-                android:background="@drawable/bg_glass"
-                android:paddingStart="12dp"
-                android:paddingTop="6dp"
-                android:paddingEnd="12dp"
-                android:paddingBottom="6dp"
-                android:text="Procurando GPS…"
-                android:textColor="@color/text_dim"
-                android:textSize="13sp" />
-
-            <!-- Próxima manobra (vem da notificação do Waze) -->
-            <LinearLayout
-                android:id="@+id/navCard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="top"
-                android:layout_marginStart="12dp"
-                android:layout_marginTop="12dp"
-                android:layout_marginEnd="76dp"
-                android:background="@drawable/bg_glass_card"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:minHeight="72dp"
-                android:orientation="horizontal"
-                android:padding="12dp">
-
-                <ImageView
-                    android:id="@+id/navIcon"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_turn" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="14dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/navTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:singleLine="true"
-                        android:text="Para onde?"
-                        android:textColor="@color/text"
-                        android:textSize="24sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/navText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:maxLines="2"
-                        android:text="Toque para abrir o Waze"
-                        android:textColor="#FFB8C0CA"
-                        android:textSize="15sp" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Bússola: alterna entre "direção para cima" e "norte para cima" -->
-            <TextView
-                android:id="@+id/compass"
-                android:layout_width="52dp"
-                android:layout_height="52dp"
-                android:layout_gravity="top|end"
-                android:layout_marginTop="22dp"
-                android:layout_marginEnd="12dp"
-                android:background="@drawable/bg_glass_circle"
-                android:drawableTop="@drawable/ic_north"
-                android:gravity="center"
-                android:paddingTop="4dp"
-                android:text="N"
-                android:textColor="@color/text"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end|center_vertical"
-                android:layout_marginEnd="12dp"
-                android:orientation="vertical">
-
-                <ImageButton
-                    android:id="@+id/zoomIn"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:background="@drawable/bg_glass_circle"
-                    android:contentDescription="Aproximar"
-                    android:src="@drawable/ic_plus" />
-
-                <ImageButton
-                    android:id="@+id/zoomOut"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:layout_marginTop="8dp"
-                    android:background="@drawable/bg_glass_circle"
-                    android:contentDescription="Afastar"
-                    android:src="@drawable/ic_minus" />
-            </LinearLayout>
-
-            <!-- Chegada / tempo / distância -->
-            <LinearLayout
-                android:id="@+id/etaCard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
-                android:layout_margin="12dp"
-                android:background="@drawable/bg_glass"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="18dp"
-                android:paddingTop="10dp"
-                android:paddingEnd="10dp"
-                android:paddingBottom="10dp">
-
-                <LinearLayout style="@style/EtaCol">
-
-                    <TextView
-                        android:id="@+id/etaArrive"
-                        style="@style/EtaValue" />
-
-                    <TextView
-                        style="@style/EtaLabel"
-                        android:text="chegada" />
-                </LinearLayout>
-
-                <LinearLayout style="@style/EtaCol">
-
-                    <TextView
-                        android:id="@+id/etaTime"
-                        style="@style/EtaValue" />
-
-                    <TextView
-                        style="@style/EtaLabel"
-                        android:text="tempo" />
-                </LinearLayout>
-
-                <LinearLayout style="@style/EtaCol">
-
-                    <TextView
-                        android:id="@+id/etaDist"
-                        style="@style/EtaValue" />
-
-                    <TextView
-                        style="@style/EtaLabel"
-                        android:text="distância" />
-                </LinearLayout>
-
-                <ImageButton
-                    android:id="@+id/etaMore"
-                    android:layout_width="52dp"
-                    android:layout_height="52dp"
-                    android:background="@drawable/bg_glass_circle"
-                    android:contentDescription="Abrir o Waze"
-                    android:src="@drawable/ic_more" />
-            </LinearLayout>
-        </FrameLayout>
-
-        <!-- Coluna direita -->
+        <!-- Coluna do painel: velocímetro + música -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_marginStart="10dp"
-            android:layout_weight="1"
+            android:layout_weight="0.85"
             android:orientation="vertical">
 
             <!-- Velocímetro -->
@@ -309,19 +110,47 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent" />
 
-                <TextView
-                    android:id="@+id/limitBadge"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_gravity="bottom|end"
-                    android:layout_marginEnd="6dp"
-                    android:layout_marginBottom="6dp"
-                    android:background="@drawable/bg_limit"
-                    android:gravity="center"
-                    android:text="80"
-                    android:textColor="#FF111111"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
+                    android:layout_marginEnd="4dp"
+                    android:layout_marginBottom="2dp"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/limitBadge"
+                        android:layout_width="54dp"
+                        android:layout_height="54dp"
+                        android:background="@drawable/bg_limit"
+                        android:gravity="center"
+                        android:textColor="#FF111111"
+                        android:textSize="19sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/limitLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="limite"
+                        android:textColor="@color/text_dim"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/roadName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|start"
+                    android:layout_marginStart="6dp"
+                    android:layout_marginBottom="4dp"
+                    android:ellipsize="end"
+                    android:maxWidth="200dp"
+                    android:singleLine="true"
+                    android:textColor="@color/text_dim"
+                    android:textSize="12sp" />
             </FrameLayout>
 
             <!-- Música -->
@@ -330,108 +159,141 @@
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_marginTop="10dp"
-                android:layout_weight="1.05"
+                android:layout_weight="1.15"
                 android:background="@drawable/bg_card_round">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
+                    android:orientation="vertical"
                     android:padding="12dp">
 
-                    <com.edson.carlauncher.SquareImageView
-                        android:id="@+id/art"
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:background="@drawable/bg_art"
-                        android:scaleType="centerCrop" />
-
                     <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_marginStart="12dp"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
                         android:layout_weight="1"
                         android:gravity="center_vertical"
-                        android:orientation="vertical">
+                        android:orientation="horizontal">
+
+                        <com.edson.carlauncher.SquareImageView
+                            android:id="@+id/art"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/bg_art"
+                            android:scaleType="centerCrop" />
 
                         <LinearLayout
-                            android:layout_width="match_parent"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
+                            android:layout_marginStart="12dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/trackTitle"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:ellipsize="marquee"
+                                    android:marqueeRepeatLimit="marquee_forever"
+                                    android:singleLine="true"
+                                    android:textColor="@color/text"
+                                    android:textSize="18sp" />
+
+                                <ImageView
+                                    android:id="@+id/musicAppIcon"
+                                    android:layout_width="26dp"
+                                    android:layout_height="26dp"
+                                    android:layout_marginStart="6dp"
+                                    android:contentDescription="Abrir o YouTube Music" />
+                            </LinearLayout>
 
                             <TextView
-                                android:id="@+id/trackTitle"
-                                android:layout_width="0dp"
+                                android:id="@+id/trackArtist"
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:ellipsize="marquee"
-                                android:marqueeRepeatLimit="marquee_forever"
+                                android:layout_marginTop="2dp"
+                                android:ellipsize="end"
                                 android:singleLine="true"
-                                android:textColor="@color/text"
-                                android:textSize="18sp" />
-
-                            <ImageView
-                                android:id="@+id/musicAppIcon"
-                                android:layout_width="26dp"
-                                android:layout_height="26dp"
-                                android:layout_marginStart="6dp"
-                                android:contentDescription="Abrir o YouTube Music" />
+                                android:textColor="@color/text_dim"
+                                android:textSize="13sp" />
                         </LinearLayout>
+                    </LinearLayout>
+
+                    <ProgressBar
+                        android:id="@+id/progress"
+                        style="@android:style/Widget.Material.ProgressBar.Horizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="4dp"
+                        android:layout_marginTop="10dp"
+                        android:max="1000"
+                        android:progressBackgroundTint="#FF39414D"
+                        android:progressTint="@color/text" />
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
 
                         <TextView
-                            android:id="@+id/trackArtist"
-                            android:layout_width="match_parent"
+                            android:id="@+id/timeCur"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:ellipsize="end"
-                            android:singleLine="true"
+                            android:layout_gravity="start"
                             android:textColor="@color/text_dim"
-                            android:textSize="13sp" />
+                            android:textSize="11sp" />
 
-                        <ProgressBar
-                            android:id="@+id/progress"
-                            style="@android:style/Widget.Material.ProgressBar.Horizontal"
-                            android:layout_width="match_parent"
-                            android:layout_height="4dp"
-                            android:layout_marginTop="8dp"
-                            android:max="1000"
-                            android:progressBackgroundTint="#FF39414D"
-                            android:progressTint="@color/text" />
+                        <TextView
+                            android:id="@+id/timeTotal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:textColor="@color/text_dim"
+                            android:textSize="11sp" />
+                    </FrameLayout>
 
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="0dp"
-                            android:layout_weight="1"
-                            android:gravity="center"
-                            android:orientation="horizontal">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="58dp"
+                        android:gravity="center"
+                        android:orientation="horizontal">
 
-                            <ImageButton
-                                android:id="@+id/btnPrev"
-                                android:layout_width="0dp"
-                                android:layout_height="match_parent"
-                                android:layout_weight="1"
-                                android:background="@drawable/bg_btn"
-                                android:contentDescription="Anterior"
-                                android:src="@drawable/ic_prev" />
+                        <ImageButton
+                            android:id="@+id/btnVolDown"
+                            style="@style/MediaBtn"
+                            android:contentDescription="Diminuir volume"
+                            android:src="@drawable/ic_minus" />
 
-                            <ImageButton
-                                android:id="@+id/btnPlay"
-                                android:layout_width="50dp"
-                                android:layout_height="50dp"
-                                android:background="@drawable/bg_circle"
-                                android:contentDescription="Tocar ou pausar"
-                                android:src="@drawable/ic_play" />
+                        <ImageButton
+                            android:id="@+id/btnPrev"
+                            style="@style/MediaBtn"
+                            android:contentDescription="Anterior"
+                            android:src="@drawable/ic_prev" />
 
-                            <ImageButton
-                                android:id="@+id/btnNext"
-                                android:layout_width="0dp"
-                                android:layout_height="match_parent"
-                                android:layout_weight="1"
-                                android:background="@drawable/bg_btn"
-                                android:contentDescription="Próxima"
-                                android:src="@drawable/ic_next" />
-                        </LinearLayout>
+                        <ImageButton
+                            android:id="@+id/btnPlay"
+                            android:layout_width="54dp"
+                            android:layout_height="54dp"
+                            android:background="@drawable/bg_circle"
+                            android:contentDescription="Tocar ou pausar"
+                            android:src="@drawable/ic_play" />
+
+                        <ImageButton
+                            android:id="@+id/btnNext"
+                            style="@style/MediaBtn"
+                            android:contentDescription="Próxima"
+                            android:src="@drawable/ic_next" />
+
+                        <ImageButton
+                            android:id="@+id/btnVolUp"
+                            style="@style/MediaBtn"
+                            android:contentDescription="Aumentar volume"
+                            android:src="@drawable/ic_plus" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -447,69 +309,34 @@
                     android:textSize="14sp"
                     android:visibility="gone" />
             </FrameLayout>
+        </LinearLayout>
 
-            <!-- Atalhos -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="10dp"
-                android:layout_weight="0.9"
-                android:background="@drawable/bg_card_round"
-                android:orientation="horizontal"
-                android:padding="8dp">
+        <!-- Espaço do Waze: a janela pop-up do Waze abre exatamente aqui -->
+        <LinearLayout
+            android:id="@+id/wazeSlot"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1.3"
+            android:background="@drawable/bg_card_round"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
 
-                <LinearLayout
-                    android:id="@+id/actSearch"
-                    style="@style/Action">
+            <ImageView
+                android:id="@+id/wazeSlotIcon"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:src="@drawable/ic_navigation" />
 
-                    <ImageView
-                        style="@style/ActionIcon"
-                        android:src="@drawable/ic_search" />
-
-                    <TextView
-                        style="@style/ActionLabel"
-                        android:text="Buscar" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/actFuel"
-                    style="@style/Action">
-
-                    <ImageView
-                        style="@style/ActionIcon"
-                        android:src="@drawable/ic_fuel" />
-
-                    <TextView
-                        style="@style/ActionLabel"
-                        android:text="Postos" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/actFood"
-                    style="@style/Action">
-
-                    <ImageView
-                        style="@style/ActionIcon"
-                        android:src="@drawable/ic_food" />
-
-                    <TextView
-                        style="@style/ActionLabel"
-                        android:text="Restaurantes" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/actMore"
-                    style="@style/Action">
-
-                    <ImageView
-                        style="@style/ActionIcon"
-                        android:src="@drawable/ic_more" />
-
-                    <TextView
-                        style="@style/ActionLabel"
-                        android:text="Mais" />
-                </LinearLayout>
-            </LinearLayout>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Toque para abrir o Waze aqui"
+                android:textColor="@color/text_dim"
+                android:textSize="15sp" />
         </LinearLayout>
     </LinearLayout>
 

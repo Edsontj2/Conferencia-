@@ -32,6 +32,18 @@ jobs:
           ./gradlew --no-daemon assembleDebug
           cp app/build/outputs/apk/debug/app-debug.apk PainelDoCarro.apk
 
+      - name: Testar consulta do limite da via (OpenStreetMap)
+        continue-on-error: true
+        working-directory: .
+        run: |
+          for p in "-23.5614,-46.6559" "-23.5505,-46.6333" "-22.9711,-43.1822"; do
+            lat=${p%,*}; lon=${p#*,}
+            curl -sS -m 30 -A "PainelDoCarro/1.0 (Android)" \
+              --data-urlencode "data=[out:json][timeout:8];way(around:30,$lat,$lon)[highway][highway!~\"^(footway|cycleway|path|steps|pedestrian|track|bridleway|corridor|platform|proposed|construction)\$\"];out tags geom;" \
+              https://overpass-api.de/api/interpreter \
+            | python3 -c "import json,sys; d=json.load(sys.stdin); print('$p', [(e['tags'].get('name'), e['tags'].get('highway'), e['tags'].get('maxspeed'), len(e.get('geometry', []))) for e in d['elements']])"
+          done
+
       - name: Guardar APK (artefato)
         uses: actions/upload-artifact@v4
         with:

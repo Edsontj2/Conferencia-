@@ -31,7 +31,3 @@ android {
     }
 }
 
-dependencies {
-    // Mapa (OpenStreetMap), sem dependências extras
-    implementation("org.osmdroid:osmdroid-android:6.1.20")
-}

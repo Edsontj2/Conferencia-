@@ -2,16 +2,15 @@
 
 Transforma um celular antigo em central multimídia do carro:
 
-- **Tela inicial no estilo Android Auto / CarPlay**:
-  - barra lateral com hora, bateria, Waze, YouTube Music, Telefone, modo carro e gaveta de apps;
-  - **mapa escuro** (OpenStreetMap) que acompanha o GPS, com a próxima manobra e
-    chegada / tempo / distância lidas da notificação do Waze;
-  - **velocímetro** pelo GPS com **alerta de velocidade** (toque no círculo vermelho para mudar);
-  - cartão de **música** (YouTube Music) e atalhos **Buscar, Postos, Restaurantes, Mais** (abrem no Waze).
-- **Waze numa janela sobre o mapa**: em celulares que aceitam janelas (pop-up da Samsung /
-  "freeform"), o Waze abre exatamente em cima do cartão do mapa, com o velocímetro e a música
-  ao lado. Se o celular não aceitar, abre em tela cheia com o painel de música à direita
-  (dá para escolher em Ajustes → "Como abrir o Waze").
+- **Tela inicial**: barra lateral (hora, bateria, Waze, YouTube Music, Telefone, apps),
+  **velocímetro** pelo GPS e **música** à esquerda, e o **Waze à direita**.
+- **Waze em tela dividida**: o Waze abre sozinho numa janela pop-up encaixada no espaço da
+  direita (celulares Samsung / com janelas). Segure o ícone do Waze para Casa, Trabalho,
+  postos, restaurantes etc. Se o celular não aceitar janelas, abre em tela cheia com o painel
+  de música por cima (Ajustes → "Como abrir o Waze").
+- **Limite da via**: consultado no OpenStreetMap (grátis, sem chave) pela rua mais próxima.
+  O velocímetro fica vermelho acima do limite. Quando a rua não tem limite cadastrado,
+  usa o alerta escolhido nos ajustes (ou não mostra nada).
 - **Tela automática**: a tela acende sozinha quando o carro começa a andar (acima de ~12 km/h)
   ou quando o celular é ligado no carregador. Enquanto anda ou carrega, a tela não apaga.
 
