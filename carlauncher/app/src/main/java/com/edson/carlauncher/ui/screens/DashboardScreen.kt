@@ -106,8 +106,9 @@ fun DashboardScreen(
         ) {
             // Em tela dividida nativa o próprio Android já encolhe a janela; no pop-up, reservamos 40%
             val reserve = wazePopupOpen && !nativeSplit
+            val fullWazeWidth = maxWidth * WAZE_FRACTION
             val wazeWidth by animateDpAsState(
-                targetValue = if (reserve) maxWidth * WAZE_FRACTION else 0.dp,
+                targetValue = if (reserve) fullWazeWidth else 0.dp,
                 animationSpec = tween(300, easing = FastOutSlowInEasing),
                 label = "waze"
             )
@@ -151,7 +152,7 @@ fun DashboardScreen(
                 }
 
                 if (wazeWidth > 1.dp) {
-                    Spacer(Modifier.width(Space.cardGap * (wazeWidth / (maxWidth * WAZE_FRACTION)).coerceIn(0f, 1f)))
+                    Spacer(Modifier.width(Space.cardGap * (wazeWidth / fullWazeWidth).coerceIn(0f, 1f)))
                     WazePane(
                         onReopen = onOpenWaze,
                         onFullScreen = onCloseWazePane,
