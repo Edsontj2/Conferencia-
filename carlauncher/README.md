@@ -1,38 +1,74 @@
-# Painel do Carro (launcher Android)
+# DriveOS — central do carro (Samsung Galaxy A52 na horizontal)
 
-Transforma um celular antigo em central multimídia do carro:
+Launcher Android nativo (Kotlin + Jetpack Compose + Material 3) que transforma o celular
+numa central do carro: **barra lateral**, **velocímetro pelo GPS** e **YouTube Music**,
+com o **Waze aberto ao lado** quando você toca nele.
 
-- **Tela inicial**: barra lateral (hora, bateria, Waze, YouTube Music, Telefone, apps),
-  **velocímetro** pelo GPS e **música** à esquerda, e o **Waze à direita**.
-- **Waze em tela dividida**: o Waze abre sozinho numa janela pop-up encaixada no espaço da
-  direita (celulares Samsung / com janelas). Segure o ícone do Waze para Casa, Trabalho,
-  postos, restaurantes etc. Se o celular não aceitar janelas, abre em tela cheia com o painel
-  de música por cima (Ajustes → "Como abrir o Waze").
-- **Limite da via**: consultado no OpenStreetMap (grátis, sem chave) pela rua mais próxima.
-  O velocímetro fica vermelho acima do limite. Quando a rua não tem limite cadastrado,
-  usa o alerta escolhido nos ajustes (ou não mostra nada).
-- **Tela automática**: a tela acende sozinha quando o carro começa a andar (acima de ~12 km/h)
-  ou quando o celular é ligado no carregador. Enquanto anda ou carrega, a tela não apaga.
+## Telas
 
-## Instalar
+- **Painel (Waze fechado):** barra lateral + velocímetro em cima (52%) + música embaixo (48%),
+  ocupando toda a tela.
+- **Painel + Waze:** ao tocar no Waze, o painel se comprime para 60% à esquerda e o Waze abre
+  nos 40% da direita.
+- **Aplicativos:** gaveta com todos os apps (segure um app para ver os detalhes).
+- **Ajustes:** modo demonstração, GPS, limite de velocidade, unidade, suavização, player padrão,
+  estado do YouTube Music, como abrir o Waze, tela ligada, modo imersivo, tela automática.
 
-1. Baixe `PainelDoCarro.apk` na página de *Releases* do repositório (versão "Painel do Carro (APK)")
-   ou nos artefatos do GitHub Actions.
-2. No celular, permita "instalar apps de fontes desconhecidas" e abra o APK.
-3. Abra o **Painel do Carro**, permita **localização**, **aparecer sobre outros apps** e o **acesso às notificações**
-   (é isso que permite controlar o YouTube Music e ler as instruções do Waze).
-   - **Samsung / Android 13 ou mais novo:** se o acesso às notificações aparecer bloqueado
-     ("configuração restrita"), vá em *Configurações → Aplicativos → Painel do Carro*,
-     toque no menu **⋮** (canto superior direito) → **Permitir configurações restritas**
-     e depois ative o acesso às notificações. No app: ⚙ Ajustes → "Liberar configurações restritas".
-   - No Samsung, vale também em *Bateria* do app marcar **Sem restrições**, para o
-     Android não fechar o painel em segundo plano.
-   - Para a tela acender e abrir o Waze sem pedir senha, use bloqueio de tela "Deslizar"/"Nenhum"
-     ou o *Smart Lock* (desbloqueio com o Bluetooth do carro).
-4. Aperte o botão *home* do celular e escolha **Painel do Carro → Sempre**
-   (ou em ⚙ Ajustes → "Usar como tela inicial do celular").
+## Como compilar e instalar
 
-## Compilar
+- O GitHub Actions compila sozinho a cada alteração em `carlauncher/` e publica o APK em
+  *Releases → "Painel do Carro (APK)"* (`PainelDoCarro.apk`).
+- Localmente: abra a pasta `carlauncher/` no Android Studio (JDK 17) e rode
+  `./gradlew assembleDebug`. O APK fica em `app/build/outputs/apk/debug/`.
+- No celular: permita "instalar apps desconhecidos", instale, abra o DriveOS e aperte *home* →
+  **DriveOS → Sempre**.
 
-`./gradlew assembleDebug` (precisa do Android SDK). O GitHub Actions compila sozinho a cada
-alteração em `carlauncher/`.
+## Permissões e o que depende delas
+
+| Permissão | Para quê | Sem ela |
+|---|---|---|
+| Localização (GPS) | Velocímetro e limite da via | Velocímetro mostra "Aguardando GPS" |
+| Acesso às notificações | Ler e controlar o YouTube Music (MediaSession) | Card de música pede o acesso |
+| Acesso ao uso (opcional) | Detectar que a janela do Waze fechou e voltar à tela cheia | Volta pelo botão "Tela cheia" |
+| Aparecer sobre outros apps (opcional) | Modo "Tela cheia + painel" e acender a tela sozinho | Esses dois recursos não funcionam |
+| Internet | Limite de velocidade (OpenStreetMap) | Badge mostra "--" |
+
+No Samsung / Android 13+, apps instalados fora da Play Store precisam de
+*Configurações → Aplicativos → DriveOS → ⋮ → Permitir configurações restritas* antes de liberar
+o acesso às notificações.
+
+## Limitações reais do Android (Android 13/14)
+
+- **Nenhum app comum consegue colocar a interface do Waze dentro da própria tela.**
+  O DriveOS abre o Waze numa **janela pop-up do sistema** posicionada exatamente nos 40% da
+  direita (`ActivityOptions.setLaunchBounds`, funciona em aparelhos com janelas, como Samsung)
+  ou na **tela dividida do Android** (`FLAG_ACTIVITY_LAUNCH_ADJACENT`), quando o sistema permite.
+- Como o DriveOS é a **tela inicial**, o Android não coloca a própria tela inicial em tela
+  dividida; por isso o caminho principal é a janela pop-up.
+- O Android não avisa outro app quando a janela do Waze é fechada. Com o **acesso ao uso**
+  liberado, o DriveOS lê os eventos públicos de uso e volta à tela cheia sozinho; sem ele, use o
+  botão **Tela cheia** no espaço do Waze. Se o painel estiver na tela dividida nativa, a troca é
+  automática (`onMultiWindowModeChanged`).
+- **Limite de velocidade:** o Waze não compartilha esse dado. O DriveOS usa o OpenStreetMap
+  (colaborativo); vias sem limite cadastrado mostram "--".
+- **Modo demonstração:** dados de exemplo sempre identificados com o selo "DEMONSTRAÇÃO".
+
+## Estrutura
+
+```
+app/src/main/java/com/edson/carlauncher/
+  MainActivity.kt            Compose + Navigation, abertura do Waze, janela/imersivo
+  ui/theme/                  Color, Type (Inter), Shape (raios e espaçamentos), Theme
+  ui/components/             AppSidebar, SpeedometerCard, MusicPlayerCard, IconButton
+  ui/screens/                DashboardScreen, SettingsScreen, AppsScreen
+  viewmodel/                 Speed, Music, Settings, Waze, Apps (StateFlow)
+  data/location/             leitura do GPS (vinda do CarService)
+  data/media/                sessão de mídia (MediaSessionManager)
+  data/preferences/          configurações (DataStore)
+  domain/model/              modelos
+  CarService.kt              serviço em primeiro plano: GPS (FusedLocation), tela automática
+  SpeedLimit.kt              limite da via (OpenStreetMap / Overpass)
+  MediaHub.kt, MediaListenerService.kt   acesso às sessões de mídia
+```
+
+Fonte Inter: SIL Open Font License 1.1 (`app/src/main/assets/licenses/Inter-OFL.txt`).
