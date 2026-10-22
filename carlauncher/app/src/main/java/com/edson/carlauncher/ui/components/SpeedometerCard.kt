@@ -84,10 +84,11 @@ fun SpeedometerCard(info: SpeedInfo, modifier: Modifier = Modifier) {
 
         // Geometria do arco (em dp), centralizada e sem encostar nas bordas
         val availW = w - pad * 2 - badgeSize * 0.6f
-        val availH = h - pad * 2 - stroke
+        // Folga para o brilho e o ponto na ponta do arco
+        val availH = h - pad * 2 - stroke * 2.5f
         val radius: Dp = min(availW.value / 2f, availH.value / ARC_HEIGHT_FACTOR).dp.coerceAtLeast(30.dp)
         val cx = w / 2
-        val top = pad + stroke / 2 + (availH - radius * ARC_HEIGHT_FACTOR) / 2
+        val top = pad + stroke * 1.25f + (availH - radius * ARC_HEIGHT_FACTOR) / 2
         val cy = top + radius
 
         Canvas(Modifier.fillMaxSize()) {
@@ -152,14 +153,19 @@ fun SpeedometerCard(info: SpeedInfo, modifier: Modifier = Modifier) {
             }
         }
 
-        // Número e unidade, centralizados no arco
-        val numberSize = with(density) { (radius * 0.78f).toSp() }.let { if (it > DriveType.speedNumber.fontSize) DriveType.speedNumber.fontSize else it }
-        val unitSize = with(density) { (radius * 0.18f).toSp() }.let { if (it > DriveType.speedUnit.fontSize) DriveType.speedUnit.fontSize else it }
-        val numberHeight = with(density) { numberSize.toDp() }
+        // Número e unidade dentro do arco, sem nunca passar da borda de baixo do card
+        val numberDp = (radius * 0.66f).coerceAtMost(112.dp)
+        val unitDp = (radius * 0.16f).coerceIn(12.dp, 26.dp)
+        val numberSize = with(density) { numberDp.toSp() }
+        val unitSize = with(density) { unitDp.toSp() }
+        val blockHeight = numberDp + unitDp * 1.3f
+        val blockTop = (cy - numberDp * 0.72f)
+            .coerceAtMost(h - pad - blockHeight)
+            .coerceAtLeast(pad)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = (cy - numberHeight * 0.62f).coerceAtLeast(0.dp)),
+                .padding(top = blockTop),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -174,7 +180,10 @@ fun SpeedometerCard(info: SpeedInfo, modifier: Modifier = Modifier) {
             )
             Text(
                 text = if (info.speed == null) info.status ?: "Aguardando GPS" else info.unit,
-                style = DriveType.speedUnit.copy(fontSize = if (info.speed == null) unitSize * 0.8f else unitSize),
+                style = DriveType.speedUnit.copy(
+                    fontSize = if (info.speed == null) unitSize * 0.8f else unitSize,
+                    lineHeight = unitSize * 1.3f
+                ),
                 textAlign = TextAlign.Center
             )
         }

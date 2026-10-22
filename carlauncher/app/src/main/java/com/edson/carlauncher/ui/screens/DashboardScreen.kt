@@ -55,6 +55,7 @@ import com.edson.carlauncher.ui.theme.DriveShapes
 import com.edson.carlauncher.ui.theme.DriveType
 import com.edson.carlauncher.ui.theme.PlayButtonSurface
 import com.edson.carlauncher.ui.theme.Space
+import com.edson.carlauncher.ui.theme.TextMuted
 import com.edson.carlauncher.ui.theme.TextPrimary
 
 /** Parte da largura útil reservada para o Waze quando ele abre ao lado (60% painel / 40% Waze). */
@@ -193,6 +194,12 @@ private fun WazePane(onReopen: () -> Unit, onFullScreen: () -> Unit, modifier: M
             Text(
                 "Toque para abrir o Waze aqui",
                 style = DriveType.musicArtist.copy(fontSize = DriveType.musicArtist.fontSize * 0.8f),
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(Space.SM))
+            Text(
+                "Se a janela abrir em outro lugar, arraste-a para este espaço: o celular lembra a posição.",
+                style = DriveType.caption.copy(color = TextMuted),
                 textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(Space.XXL))
