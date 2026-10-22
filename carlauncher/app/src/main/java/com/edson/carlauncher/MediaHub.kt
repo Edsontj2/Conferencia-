@@ -90,11 +90,18 @@ object MediaHub {
         }
     }
 
+    /** Player padrão: true = prioriza o YouTube Music; false = qualquer player tocando. */
+    var preferYouTubeMusic = true
+
     private fun pick(list: List<MediaController>) {
-        val best = list.firstOrNull { it.packageName == Launch.YT_MUSIC && isPlaying(it) }
-            ?: list.firstOrNull { isPlaying(it) }
-            ?: list.firstOrNull { it.packageName == Launch.YT_MUSIC }
-            ?: list.firstOrNull()
+        val best = if (preferYouTubeMusic) {
+            list.firstOrNull { it.packageName == Launch.YT_MUSIC && isPlaying(it) }
+                ?: list.firstOrNull { isPlaying(it) }
+                ?: list.firstOrNull { it.packageName == Launch.YT_MUSIC }
+                ?: list.firstOrNull()
+        } else {
+            list.firstOrNull { isPlaying(it) } ?: list.firstOrNull()
+        }
         setController(best)
     }
 

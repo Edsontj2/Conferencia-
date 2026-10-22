@@ -10,7 +10,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.content.res.Configuration
@@ -33,6 +32,13 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.ImageButton
 import android.widget.TextView
+import com.edson.carlauncher.data.preferences.SettingsRepository
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 
 /**
  * Serviço que fica rodando enquanto o painel está em uso:
@@ -44,7 +50,7 @@ import android.widget.TextView
 class CarService : Service() {
 
     private val handler = Handler(Looper.getMainLooper())
-    private lateinit var prefs: SharedPreferences
+    private val settings get() = SettingsRepository.current
     private lateinit var power: PowerManager
 
     private var gpsInterval = 0L
@@ -61,7 +67,7 @@ class CarService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        prefs = getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE)
+        SettingsRepository.init(this)
         power = getSystemService(Context.POWER_SERVICE) as PowerManager
         if (!goForeground()) {
             stopSelf()
@@ -111,7 +117,7 @@ class CarService : Service() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val builder = if (Build.VERSION.SDK_INT >= 26) {
             nm.createNotificationChannel(
-                NotificationChannel(CHANNEL, "Painel do Carro", NotificationManager.IMPORTANCE_LOW)
+                NotificationChannel(CHANNEL, "DriveOS", NotificationManager.IMPORTANCE_LOW)
             )
             Notification.Builder(this, CHANNEL)
         } else {
@@ -122,7 +128,7 @@ class CarService : Service() {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), piFlags)
         val notification = builder
             .setSmallIcon(R.drawable.ic_navigation)
-            .setContentTitle("Painel do Carro ativo")
+            .setContentTitle("DriveOS ativo")
             .setContentText("Velocímetro e tela automática ligados")
             .setContentIntent(open)
             .setOngoing(true)
@@ -172,18 +178,44 @@ class CarService : Service() {
         }
     }
 
+    private var fused: FusedLocationProviderClient? = null
+    private val fusedCallback = object : LocationCallback() {
+        override fun onLocationResult(result: LocationResult) {
+            result.lastLocation?.let { onFix(it) }
+        }
+    }
+
+    /** GPS pelo FusedLocationProvider (Google Play); se não houver, usa o GPS direto do Android. */
     private fun startGps(interval: Long) {
         if (interval == gpsInterval) return
         if (!hasLocationPermission(this)) {
             SpeedState.setStatus("Sem permissão de GPS")
             return
         }
+        stopGps()
+        gpsInterval = interval
+        try {
+            val client = LocationServices.getFusedLocationProviderClient(this)
+            val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, interval)
+                .setMinUpdateIntervalMillis(minOf(interval, 1000L))
+                .build()
+            client.requestLocationUpdates(request, fusedCallback, Looper.getMainLooper())
+                .addOnFailureListener { startLegacyGps(interval) }
+            fused = client
+        } catch (e: SecurityException) {
+            SpeedState.setStatus("Sem permissão de GPS")
+        } catch (e: Exception) {
+            startLegacyGps(interval)
+        }
+    }
+
+    private fun startLegacyGps(interval: Long) {
+        fused?.removeLocationUpdates(fusedCallback)
+        fused = null
         val lm = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         try {
-            lm.removeUpdates(locationListener)
             if (!lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) SpeedState.setStatus("GPS desligado")
             lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, interval, 0f, locationListener, Looper.getMainLooper())
-            gpsInterval = interval
         } catch (e: SecurityException) {
             SpeedState.setStatus("Sem permissão de GPS")
         } catch (e: Exception) {
@@ -193,11 +225,18 @@ class CarService : Service() {
 
     private fun stopGps() {
         try {
+            fused?.removeLocationUpdates(fusedCallback)
+        } catch (_: Exception) {
+        }
+        fused = null
+        try {
             (getSystemService(Context.LOCATION_SERVICE) as LocationManager).removeUpdates(locationListener)
         } catch (_: Exception) {
         }
         gpsInterval = 0L
     }
+
+    private var smoothedMps = -1f
 
     private fun onFix(loc: Location) {
         val prev = lastFix
@@ -209,18 +248,25 @@ class CarService : Service() {
             0f
         }
         if (mps < 0.6f) mps = 0f // ignora a "tremedeira" do GPS parado
+        // Filtro simples (média móvel exponencial) contra oscilações do GPS
+        val alpha = when (settings.smoothing) {
+            0 -> 0.85f
+            2 -> 0.3f
+            else -> 0.55f
+        }
+        smoothedMps = if (smoothedMps < 0f || mps == 0f) mps else alpha * mps + (1 - alpha) * smoothedMps
         lastFix = loc
-        val kmh = Math.round(mps * 3.6f)
+        val kmh = Math.round(smoothedMps * 3.6f)
         SpeedState.setSpeed(kmh)
         SpeedState.setLocation(loc.latitude, loc.longitude, if (loc.hasBearing() && kmh >= 3) loc.bearing else null)
         // Limite da via: só consulta com a tela acesa (ninguém vê com ela apagada)
-        if (power.isInteractive) SpeedLimit.onLocation(loc.latitude, loc.longitude, kmh)
+        if (power.isInteractive && settings.showSpeedLimit) SpeedLimit.onLocation(loc.latitude, loc.longitude, kmh)
 
         if (kmh >= MOVING_KMH) {
             movingFixes++
             lastMovingAt = SystemClock.elapsedRealtime()
             // Duas leituras seguidas em movimento evitam acender a tela por erro do GPS
-            if (movingFixes >= 2 && prefs.getBoolean(Prefs.WAKE_ON_MOVE, true)) wakeScreen()
+            if (movingFixes >= 2 && settings.wakeOnMove) wakeScreen()
         } else {
             movingFixes = 0
         }
@@ -240,7 +286,7 @@ class CarService : Service() {
             when (intent.action) {
                 Intent.ACTION_POWER_CONNECTED -> {
                     charging = true
-                    if (prefs.getBoolean(Prefs.WAKE_ON_POWER, true)) wakeScreen()
+                    if (settings.wakeOnPower) wakeScreen()
                 }
                 Intent.ACTION_POWER_DISCONNECTED -> charging = false
             }
@@ -278,8 +324,8 @@ class CarService : Service() {
     @Suppress("DEPRECATION")
     private fun updateKeepAwake() {
         val moving = lastMovingAt > 0 && SystemClock.elapsedRealtime() - lastMovingAt < KEEP_AFTER_MOVING_MS
-        val want = (moving && prefs.getBoolean(Prefs.WAKE_ON_MOVE, true)) ||
-                (charging && prefs.getBoolean(Prefs.KEEP_ON, true))
+        val want = (moving && settings.wakeOnMove) ||
+                (charging && settings.keepScreenOn)
         if (want) {
             if (keepAwakeLock == null) {
                 keepAwakeLock = power.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK, "carlauncher:keep").apply {
@@ -487,20 +533,4 @@ object SpeedState {
     fun removeListener(l: () -> Unit) = listeners.remove(l)
 
     private fun notifyListeners() = listeners.toList().forEach { it() }
-}
-
-/** Nomes das preferências. */
-object Prefs {
-    const val FILE = "config"
-    const val IDLE = "idle_seconds"
-    const val KEEP_ON = "keep_screen_on"
-    const val NAME = "user_name"
-    const val ASKED_NOTIF = "asked_notification_access"
-    const val ASKED_OVERLAY = "asked_overlay"
-    const val WAKE_ON_MOVE = "wake_on_move"
-    const val WAKE_ON_POWER = "wake_on_power"
-    const val CAR_MODE_ON_WAKE = "car_mode_on_wake"
-    const val SPEED_LIMIT = "speed_limit"
-    const val WAZE_WINDOW = "waze_window"
-    const val AUTO_WAZE = "auto_waze"
 }
