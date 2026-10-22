@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Painel de música que fica à direita, por cima do Waze (modo carro) -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_overlay">
+
+    <LinearLayout
+        android:id="@+id/panelFull"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/panelCollapse"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_btn"
+                android:contentDescription="Recolher painel"
+                android:src="@drawable/ic_chevron_right" />
+
+            <TextClock
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:format12Hour="HH:mm"
+                android:format24Hour="HH:mm"
+                android:gravity="center"
+                android:textColor="@color/text"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/panelHome"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_btn"
+                android:contentDescription="Tela inicial"
+                android:src="@drawable/ic_home" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:baselineAligned="true"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/panelSpeed"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:text="--"
+                android:textColor="@color/text"
+                android:textSize="40sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="km/h"
+                android:textColor="@color/text_dim"
+                android:textSize="15sp" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="6dp"
+            android:layout_weight="1">
+
+            <com.edson.carlauncher.SquareImageView
+                android:id="@+id/art"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_art"
+                android:scaleType="centerCrop" />
+
+            <TextView
+                android:id="@+id/mediaHint"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#CC000000"
+                android:gravity="center"
+                android:padding="10dp"
+                android:text="Toque para permitir o controle da música"
+                android:textColor="@color/text"
+                android:textSize="14sp"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/trackTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:ellipsize="marquee"
+            android:gravity="center"
+            android:marqueeRepeatLimit="marquee_forever"
+            android:singleLine="true"
+            android:textColor="@color/text"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/trackArtist"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:singleLine="true"
+            android:textColor="@color/text_dim"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnPrev"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_btn"
+                android:contentDescription="Anterior"
+                android:src="@drawable/ic_prev" />
+
+            <ImageButton
+                android:id="@+id/btnPlay"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="@drawable/bg_circle"
+                android:contentDescription="Tocar ou pausar"
+                android:src="@drawable/ic_play" />
+
+            <ImageButton
+                android:id="@+id/btnNext"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_btn"
+                android:contentDescription="Próxima"
+                android:src="@drawable/ic_next" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/progress"
+            style="@android:style/Widget.Material.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="5dp"
+            android:max="1000"
+            android:progressBackgroundTint="@color/track"
+            android:progressTint="@color/accent" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/timeCur"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:textColor="@color/text_dim"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/timeTotal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:textColor="@color/text_dim"
+                android:textSize="11sp" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnVolDown"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg_btn"
+                android:contentDescription="Diminuir volume"
+                android:src="@drawable/ic_minus" />
+
+            <ImageButton
+                android:id="@+id/btnVol"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg_btn"
+                android:contentDescription="Volume"
+                android:src="@drawable/ic_volume" />
+
+            <ImageButton
+                android:id="@+id/btnVolUp"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg_btn"
+                android:contentDescription="Aumentar volume"
+                android:src="@drawable/ic_plus" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Versão recolhida: tira fina com o essencial -->
+    <LinearLayout
+        android:id="@+id/panelMini"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:visibility="gone">
+
+        <ImageButton
+            android:id="@+id/miniExpand"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/bg_btn"
+            android:contentDescription="Abrir painel"
+            android:src="@drawable/ic_chevron_left" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:id="@+id/miniSpeed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="--"
+            android:textColor="@color/text"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="km/h"
+            android:textColor="@color/text_dim"
+            android:textSize="11sp" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@+id/miniPlay"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/bg_circle"
+            android:contentDescription="Tocar ou pausar"
+            android:src="@drawable/ic_play" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@+id/miniHome"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/bg_btn"
+            android:contentDescription="Tela inicial"
+            android:src="@drawable/ic_home" />
+    </LinearLayout>
+</FrameLayout>
