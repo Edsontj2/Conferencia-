@@ -212,6 +212,7 @@ class CarService : Service() {
         lastFix = loc
         val kmh = Math.round(mps * 3.6f)
         SpeedState.setSpeed(kmh)
+        SpeedState.setLocation(loc.latitude, loc.longitude, if (loc.hasBearing() && kmh >= 3) loc.bearing else null)
 
         if (kmh >= MOVING_KMH) {
             movingFixes++
@@ -448,7 +449,25 @@ object SpeedState {
     var status: String? = "Procurando GPS…"
         private set
 
+    var lat = 0.0
+        private set
+    var lon = 0.0
+        private set
+    var hasLocation = false
+        private set
+    /** Direção do movimento em graus (0 = norte); mantém a última quando parado. */
+    var bearing = 0f
+        private set
+
     private val listeners = LinkedHashSet<() -> Unit>()
+
+    fun setLocation(latitude: Double, longitude: Double, newBearing: Float?) {
+        lat = latitude
+        lon = longitude
+        hasLocation = true
+        if (newBearing != null) bearing = newBearing
+        notifyListeners()
+    }
 
     fun setSpeed(value: Int) {
         kmh = value
@@ -479,4 +498,7 @@ object Prefs {
     const val WAKE_ON_MOVE = "wake_on_move"
     const val WAKE_ON_POWER = "wake_on_power"
     const val CAR_MODE_ON_WAKE = "car_mode_on_wake"
+    const val SPEED_LIMIT = "speed_limit"
+    const val WAZE_WINDOW = "waze_window"
+    const val HEADING_UP = "heading_up"
 }

@@ -23,8 +23,15 @@ class SpeedometerView(context: Context, attrs: AttributeSet?) : View(context, at
     private var status: String? = "Procurando GPS…"
     private var animator: ValueAnimator? = null
 
-    private val accent = colorRes(R.color.accent)
-    private val warn = Color.parseColor("#FFFFA726")
+    private val normal = Color.parseColor("#FF34D399")
+    private val warn = Color.parseColor("#FFFF5252")
+
+    /** Limite de velocidade para o alerta (0 = sem alerta). O arco fica vermelho acima dele. */
+    var limit = 0
+        set(value) {
+            field = value
+            invalidate()
+        }
 
     private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -34,7 +41,7 @@ class SpeedometerView(context: Context, attrs: AttributeSet?) : View(context, at
     private val arcPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
-        color = accent
+        color = normal
     }
     private val tickPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -94,7 +101,7 @@ class SpeedometerView(context: Context, attrs: AttributeSet?) : View(context, at
         canvas.drawArc(rect, 135f, 270f, false, trackPaint)
         val fraction = (shown / maxSpeed).coerceIn(0f, 1f)
         if (fraction > 0.003f) {
-            arcPaint.color = if (shown > 110f) warn else accent
+            arcPaint.color = if (limit > 0 && shown > limit) warn else normal
             canvas.drawArc(rect, 135f, 270f * fraction, false, arcPaint)
         }
 
@@ -109,6 +116,7 @@ class SpeedometerView(context: Context, attrs: AttributeSet?) : View(context, at
             canvas.drawLine(cx + c * inner, cy + s * inner, cx + c * outer, cy + s * outer, tickPaint)
         }
 
+        numberPaint.color = if (limit > 0 && shown > limit) warn else Color.WHITE
         numberPaint.textSize = radius * 0.78f
         canvas.drawText(shown.roundToInt().toString(), cx, cy + numberPaint.textSize * 0.30f, numberPaint)
 

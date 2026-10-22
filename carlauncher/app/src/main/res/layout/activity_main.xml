@@ -3,264 +3,160 @@
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg">
+    android:background="#FF07090D">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="horizontal"
-        android:padding="8dp">
+        android:padding="10dp">
 
-        <!-- Barra lateral -->
+        <!-- Barra lateral: hora, apps do carro e gaveta -->
         <LinearLayout
-            android:layout_width="80dp"
+            android:layout_width="72dp"
             android:layout_height="match_parent"
+            android:background="@drawable/bg_rail"
             android:gravity="center_horizontal"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:paddingTop="12dp"
+            android:paddingBottom="10dp">
 
             <TextClock
-                android:id="@+id/railClock"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:paddingTop="6dp"
-                android:paddingBottom="6dp"
                 android:format12Hour="HH:mm"
                 android:format24Hour="HH:mm"
                 android:textColor="@color/text"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:visibility="invisible" />
+                android:textSize="19sp"
+                android:textStyle="bold" />
 
-            <ImageButton
-                android:id="@+id/btnHome"
-                style="@style/RailButton"
-                android:background="@drawable/bg_btn_selected"
-                android:contentDescription="Início"
-                android:src="@drawable/ic_home" />
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <ImageButton
-                android:id="@+id/btnDash"
-                style="@style/RailButton"
-                android:contentDescription="Painel de direção"
-                android:src="@drawable/ic_speed" />
+                <ImageView
+                    android:id="@+id/btIcon"
+                    android:layout_width="13dp"
+                    android:layout_height="13dp"
+                    android:layout_marginEnd="2dp"
+                    android:src="@drawable/ic_bluetooth"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/battery"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="--%"
+                    android:textColor="@color/text_dim"
+                    android:textSize="13sp" />
+            </LinearLayout>
 
             <View
                 android:layout_width="1dp"
                 android:layout_height="0dp"
                 android:layout_weight="1" />
 
-            <ImageButton
-                android:id="@+id/btnSettings"
-                style="@style/RailButton"
-                android:contentDescription="Ajustes"
-                android:src="@drawable/ic_settings" />
+            <ImageView
+                android:id="@+id/railWaze"
+                style="@style/RailApp"
+                android:contentDescription="Waze" />
+
+            <ImageView
+                android:id="@+id/railMusic"
+                style="@style/RailApp"
+                android:contentDescription="YouTube Music" />
+
+            <ImageView
+                android:id="@+id/railPhone"
+                style="@style/RailApp"
+                android:contentDescription="Telefone" />
+
+            <ImageView
+                android:id="@+id/railCar"
+                style="@style/RailApp"
+                android:background="@drawable/bg_tile_dark"
+                android:contentDescription="Waze em tela cheia com música"
+                android:padding="12dp"
+                android:src="@drawable/ic_car" />
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <ImageView
+                android:id="@+id/railApps"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_btn"
+                android:contentDescription="Aplicativos"
+                android:padding="12dp"
+                android:src="@drawable/ic_dots" />
         </LinearLayout>
 
+        <!-- Mapa -->
         <FrameLayout
+            android:id="@+id/mapCard"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1">
+            android:layout_marginStart="10dp"
+            android:layout_weight="1.25"
+            android:background="@drawable/bg_card_round">
 
-            <!-- Tela inicial -->
             <FrameLayout
-                android:id="@+id/homeScreen"
+                android:id="@+id/mapHost"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/bg_home">
+                android:layout_height="match_parent" />
 
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="top|end"
-                    android:layout_marginTop="12dp"
-                    android:layout_marginEnd="18dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+            <!-- Seta da sua posição (o mapa fica sempre centralizado em você) -->
+            <ImageView
+                android:id="@+id/meArrow"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_me" />
 
-                    <ImageView
-                        android:id="@+id/homeBt"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_bluetooth"
-                        android:visibility="gone" />
+            <TextView
+                android:id="@+id/mapStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="44dp"
+                android:background="@drawable/bg_glass"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="Procurando GPS…"
+                android:textColor="@color/text_dim"
+                android:textSize="13sp" />
 
-                    <TextView
-                        android:id="@+id/homeBattery"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="10dp"
-                        android:text="--%"
-                        android:textColor="@color/text"
-                        android:textSize="16sp" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="28dp"
-                    android:paddingEnd="16dp">
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="0.85"
-                        android:orientation="vertical">
-
-                        <TextClock
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:format12Hour="HH:mm"
-                            android:format24Hour="HH:mm"
-                            android:includeFontPadding="false"
-                            android:singleLine="true"
-                            android:textColor="@color/text"
-                            android:textSize="76sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/homeDate"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:textColor="#FFD8DDE3"
-                            android:textSize="18sp" />
-
-                        <TextView
-                            android:id="@+id/homeGreeting"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="14dp"
-                            android:textColor="@color/text_dim"
-                            android:textSize="16sp" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1.6"
-                        android:orientation="horizontal">
-
-                        <LinearLayout
-                            android:id="@+id/tileNav"
-                            style="@style/Tile">
-
-                            <ImageView
-                                style="@style/TileIcon"
-                                android:src="@drawable/ic_navigation"
-                                android:tint="@color/accent" />
-
-                            <TextView
-                                style="@style/TileLabel"
-                                android:text="Navegação" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/tileMusic"
-                            style="@style/Tile">
-
-                            <ImageView
-                                style="@style/TileIcon"
-                                android:src="@drawable/ic_music"
-                                android:tint="@color/music" />
-
-                            <TextView
-                                style="@style/TileLabel"
-                                android:text="Música" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/tilePhone"
-                            style="@style/Tile">
-
-                            <ImageView
-                                style="@style/TileIcon"
-                                android:src="@drawable/ic_phone"
-                                android:tint="@color/phone" />
-
-                            <TextView
-                                style="@style/TileLabel"
-                                android:text="Telefone" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/tileApps"
-                            style="@style/Tile">
-
-                            <ImageView
-                                style="@style/TileIcon"
-                                android:src="@drawable/ic_apps" />
-
-                            <TextView
-                                style="@style/TileLabel"
-                                android:text="Aplicativos" />
-                        </LinearLayout>
-                    </LinearLayout>
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/homeSettings"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="bottom|end"
-                    android:layout_marginEnd="12dp"
-                    android:layout_marginBottom="8dp"
-                    android:background="@drawable/bg_btn"
-                    android:gravity="center_horizontal"
-                    android:orientation="vertical"
-                    android:padding="8dp">
-
-                    <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
-                        android:src="@drawable/ic_settings" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Ajustes"
-                        android:textColor="@color/text_dim"
-                        android:textSize="14sp" />
-                </LinearLayout>
-            </FrameLayout>
-
-            <!-- Painel de direção -->
-            <LinearLayout
-                android:id="@+id/dashScreen"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="horizontal"
-                android:visibility="gone">
-
-        <!-- Navegação + velocímetro -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1.35"
-            android:background="@drawable/bg_panel"
-            android:orientation="vertical"
-            android:padding="10dp">
-
+            <!-- Próxima manobra (vem da notificação do Waze) -->
             <LinearLayout
                 android:id="@+id/navCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_card"
+                android:layout_gravity="top"
+                android:layout_marginStart="12dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginEnd="76dp"
+                android:background="@drawable/bg_glass_card"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center_vertical"
-                android:minHeight="76dp"
+                android:minHeight="72dp"
                 android:orientation="horizontal"
                 android:padding="12dp">
 
                 <ImageView
                     android:id="@+id/navIcon"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
                     android:scaleType="fitCenter"
-                    android:src="@drawable/ic_navigation" />
+                    android:src="@drawable/ic_turn" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -275,9 +171,9 @@
                         android:layout_height="wrap_content"
                         android:ellipsize="end"
                         android:singleLine="true"
-                        android:text="Waze"
+                        android:text="Para onde?"
                         android:textColor="@color/text"
-                        android:textSize="22sp"
+                        android:textSize="24sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -286,239 +182,335 @@
                         android:layout_height="wrap_content"
                         android:ellipsize="end"
                         android:maxLines="2"
-                        android:text="Toque para abrir a navegação"
-                        android:textColor="@color/text_dim"
+                        android:text="Toque para abrir o Waze"
+                        android:textColor="#FFB8C0CA"
                         android:textSize="15sp" />
                 </LinearLayout>
             </LinearLayout>
 
-            <com.edson.carlauncher.SpeedometerView
-                android:id="@+id/speedo"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="6dp"
-                android:layout_marginBottom="6dp"
-                android:layout_weight="1" />
+            <!-- Bússola: alterna entre "direção para cima" e "norte para cima" -->
+            <TextView
+                android:id="@+id/compass"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="22dp"
+                android:layout_marginEnd="12dp"
+                android:background="@drawable/bg_glass_circle"
+                android:drawableTop="@drawable/ic_north"
+                android:gravity="center"
+                android:paddingTop="4dp"
+                android:text="N"
+                android:textColor="@color/text"
+                android:textSize="13sp"
+                android:textStyle="bold" />
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:orientation="horizontal">
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="12dp"
+                android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/btnGoHome"
-                    style="@style/Chip"
-                    android:layout_marginEnd="6dp"
-                    android:drawableStart="@drawable/ic_home"
-                    android:text="Casa" />
+                <ImageButton
+                    android:id="@+id/zoomIn"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_glass_circle"
+                    android:contentDescription="Aproximar"
+                    android:src="@drawable/ic_plus" />
 
-                <TextView
-                    android:id="@+id/btnGoWork"
-                    style="@style/Chip"
-                    android:layout_marginEnd="6dp"
-                    android:drawableStart="@drawable/ic_work"
-                    android:text="Trabalho" />
-
-                <TextView
-                    android:id="@+id/btnOpenWaze"
-                    style="@style/Chip"
-                    android:drawableStart="@drawable/ic_navigation"
-                    android:text="Waze" />
+                <ImageButton
+                    android:id="@+id/zoomOut"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_glass_circle"
+                    android:contentDescription="Afastar"
+                    android:src="@drawable/ic_minus" />
             </LinearLayout>
-        </LinearLayout>
 
-        <!-- Música -->
+            <!-- Chegada / tempo / distância -->
+            <LinearLayout
+                android:id="@+id/etaCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:layout_margin="12dp"
+                android:background="@drawable/bg_glass"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="18dp"
+                android:paddingTop="10dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="10dp">
+
+                <LinearLayout style="@style/EtaCol">
+
+                    <TextView
+                        android:id="@+id/etaArrive"
+                        style="@style/EtaValue" />
+
+                    <TextView
+                        style="@style/EtaLabel"
+                        android:text="chegada" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/EtaCol">
+
+                    <TextView
+                        android:id="@+id/etaTime"
+                        style="@style/EtaValue" />
+
+                    <TextView
+                        style="@style/EtaLabel"
+                        android:text="tempo" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/EtaCol">
+
+                    <TextView
+                        android:id="@+id/etaDist"
+                        style="@style/EtaValue" />
+
+                    <TextView
+                        style="@style/EtaLabel"
+                        android:text="distância" />
+                </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/etaMore"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:background="@drawable/bg_glass_circle"
+                    android:contentDescription="Abrir o Waze"
+                    android:src="@drawable/ic_more" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Coluna direita -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="10dp"
             android:layout_weight="1"
-            android:background="@drawable/bg_panel"
-            android:orientation="vertical"
-            android:padding="10dp">
+            android:orientation="vertical">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="22dp"
-                android:gravity="end|center_vertical"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:id="@+id/btIcon"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:src="@drawable/ic_bluetooth"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/battery"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="--%"
-                    android:textColor="@color/text"
-                    android:textSize="14sp" />
-            </LinearLayout>
-
+            <!-- Velocímetro -->
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_marginTop="4dp"
-                android:layout_weight="1">
+                android:layout_weight="1"
+                android:background="@drawable/bg_card_round"
+                android:padding="8dp">
 
-                <com.edson.carlauncher.SquareImageView
-                    android:id="@+id/art"
+                <com.edson.carlauncher.SpeedometerView
+                    android:id="@+id/speedo"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+                <TextView
+                    android:id="@+id/limitBadge"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:layout_gravity="bottom|end"
+                    android:layout_marginEnd="6dp"
+                    android:layout_marginBottom="6dp"
+                    android:background="@drawable/bg_limit"
+                    android:gravity="center"
+                    android:text="80"
+                    android:textColor="#FF111111"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </FrameLayout>
+
+            <!-- Música -->
+            <FrameLayout
+                android:id="@+id/musicCard"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="10dp"
+                android:layout_weight="1.05"
+                android:background="@drawable/bg_card_round">
+
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:layout_gravity="center"
-                    android:background="@drawable/bg_art"
-                    android:padding="0dp"
-                    android:scaleType="centerCrop" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="12dp">
+
+                    <com.edson.carlauncher.SquareImageView
+                        android:id="@+id/art"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_art"
+                        android:scaleType="centerCrop" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:gravity="center_vertical"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/trackTitle"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:ellipsize="marquee"
+                                android:marqueeRepeatLimit="marquee_forever"
+                                android:singleLine="true"
+                                android:textColor="@color/text"
+                                android:textSize="18sp" />
+
+                            <ImageView
+                                android:id="@+id/musicAppIcon"
+                                android:layout_width="26dp"
+                                android:layout_height="26dp"
+                                android:layout_marginStart="6dp"
+                                android:contentDescription="Abrir o YouTube Music" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/trackArtist"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:singleLine="true"
+                            android:textColor="@color/text_dim"
+                            android:textSize="13sp" />
+
+                        <ProgressBar
+                            android:id="@+id/progress"
+                            style="@android:style/Widget.Material.ProgressBar.Horizontal"
+                            android:layout_width="match_parent"
+                            android:layout_height="4dp"
+                            android:layout_marginTop="8dp"
+                            android:max="1000"
+                            android:progressBackgroundTint="#FF39414D"
+                            android:progressTint="@color/text" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="0dp"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:orientation="horizontal">
+
+                            <ImageButton
+                                android:id="@+id/btnPrev"
+                                android:layout_width="0dp"
+                                android:layout_height="match_parent"
+                                android:layout_weight="1"
+                                android:background="@drawable/bg_btn"
+                                android:contentDescription="Anterior"
+                                android:src="@drawable/ic_prev" />
+
+                            <ImageButton
+                                android:id="@+id/btnPlay"
+                                android:layout_width="50dp"
+                                android:layout_height="50dp"
+                                android:background="@drawable/bg_circle"
+                                android:contentDescription="Tocar ou pausar"
+                                android:src="@drawable/ic_play" />
+
+                            <ImageButton
+                                android:id="@+id/btnNext"
+                                android:layout_width="0dp"
+                                android:layout_height="match_parent"
+                                android:layout_weight="1"
+                                android:background="@drawable/bg_btn"
+                                android:contentDescription="Próxima"
+                                android:src="@drawable/ic_next" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/mediaHint"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:background="#CC000000"
+                    android:background="#E6000000"
                     android:gravity="center"
                     android:padding="12dp"
                     android:text="Toque aqui para permitir o controle da música (acesso às notificações)"
                     android:textColor="@color/text"
-                    android:textSize="15sp"
+                    android:textSize="14sp"
                     android:visibility="gone" />
             </FrameLayout>
 
-            <TextView
-                android:id="@+id/trackTitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:ellipsize="marquee"
-                android:gravity="center"
-                android:marqueeRepeatLimit="marquee_forever"
-                android:singleLine="true"
-                android:text="Nenhuma música"
-                android:textColor="@color/text"
-                android:textSize="19sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/trackArtist"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:singleLine="true"
-                android:text="Toque ▶ para abrir o YouTube Music"
-                android:textColor="@color/text_dim"
-                android:textSize="14sp" />
-
+            <!-- Atalhos -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="64dp"
-                android:gravity="center"
-                android:orientation="horizontal">
+                android:layout_height="0dp"
+                android:layout_marginTop="10dp"
+                android:layout_weight="0.9"
+                android:background="@drawable/bg_card_round"
+                android:orientation="horizontal"
+                android:padding="8dp">
 
-                <ImageButton
-                    android:id="@+id/btnPrev"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_btn"
-                    android:contentDescription="Anterior"
-                    android:scaleType="center"
-                    android:src="@drawable/ic_prev" />
+                <LinearLayout
+                    android:id="@+id/actSearch"
+                    style="@style/Action">
 
-                <ImageButton
-                    android:id="@+id/btnPlay"
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
-                    android:background="@drawable/bg_circle"
-                    android:contentDescription="Tocar ou pausar"
-                    android:scaleType="center"
-                    android:src="@drawable/ic_play" />
+                    <ImageView
+                        style="@style/ActionIcon"
+                        android:src="@drawable/ic_search" />
 
-                <ImageButton
-                    android:id="@+id/btnNext"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_btn"
-                    android:contentDescription="Próxima"
-                    android:scaleType="center"
-                    android:src="@drawable/ic_next" />
-            </LinearLayout>
+                    <TextView
+                        style="@style/ActionLabel"
+                        android:text="Buscar" />
+                </LinearLayout>
 
-            <ProgressBar
-                android:id="@+id/progress"
-                style="@android:style/Widget.Material.ProgressBar.Horizontal"
-                android:layout_width="match_parent"
-                android:layout_height="6dp"
-                android:layout_marginTop="4dp"
-                android:max="1000"
-                android:progress="0"
-                android:progressBackgroundTint="@color/track"
-                android:progressTint="@color/accent" />
+                <LinearLayout
+                    android:id="@+id/actFuel"
+                    style="@style/Action">
 
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                    <ImageView
+                        style="@style/ActionIcon"
+                        android:src="@drawable/ic_fuel" />
 
-                <TextView
-                    android:id="@+id/timeCur"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="start"
-                    android:text="0:00"
-                    android:textColor="@color/text_dim"
-                    android:textSize="12sp" />
+                    <TextView
+                        style="@style/ActionLabel"
+                        android:text="Postos" />
+                </LinearLayout>
 
-                <TextView
-                    android:id="@+id/timeTotal"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="end"
-                    android:text="0:00"
-                    android:textColor="@color/text_dim"
-                    android:textSize="12sp" />
-            </FrameLayout>
+                <LinearLayout
+                    android:id="@+id/actFood"
+                    style="@style/Action">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="2dp"
-                android:orientation="horizontal">
+                    <ImageView
+                        style="@style/ActionIcon"
+                        android:src="@drawable/ic_food" />
 
-                <ImageButton
-                    android:id="@+id/btnVolDown"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_btn"
-                    android:contentDescription="Diminuir volume"
-                    android:src="@drawable/ic_minus" />
+                    <TextView
+                        style="@style/ActionLabel"
+                        android:text="Restaurantes" />
+                </LinearLayout>
 
-                <ImageButton
-                    android:id="@+id/btnVol"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_btn"
-                    android:contentDescription="Volume"
-                    android:src="@drawable/ic_volume" />
+                <LinearLayout
+                    android:id="@+id/actMore"
+                    style="@style/Action">
 
-                <ImageButton
-                    android:id="@+id/btnVolUp"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_btn"
-                    android:contentDescription="Aumentar volume"
-                    android:src="@drawable/ic_plus" />
+                    <ImageView
+                        style="@style/ActionIcon"
+                        android:src="@drawable/ic_more" />
+
+                    <TextView
+                        style="@style/ActionLabel"
+                        android:text="Mais" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
-            </LinearLayout>
-        </FrameLayout>
     </LinearLayout>
 
     <!-- Gaveta de aplicativos -->
@@ -548,6 +540,14 @@
                 android:textColor="@color/text"
                 android:textSize="22sp"
                 android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/appsSettings"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_btn"
+                android:contentDescription="Ajustes"
+                android:src="@drawable/ic_settings" />
 
             <ImageButton
                 android:id="@+id/appsClose"
@@ -610,10 +610,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
+                android:ellipsize="end"
                 android:gravity="center"
                 android:maxWidth="520dp"
                 android:singleLine="true"
-                android:ellipsize="end"
                 android:textColor="@color/accent"
                 android:textSize="18sp" />
         </LinearLayout>

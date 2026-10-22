@@ -2,20 +2,18 @@
 
 Transforma um celular antigo em central multimídia do carro:
 
-- **Tela inicial (launcher)** em modo paisagem, tela cheia, tema escuro e botões grandes.
-- **Modo carro (Waze + música)**: o Waze abre em tela cheia e o painel de música fica à direita,
-  por cima dele, como no Android Auto. O painel pode ser recolhido numa tira fina (‹ ›) e tem
-  o botão 🏠 para voltar à tela inicial.
-- **Tela automática**: com o GPS rodando em segundo plano, a tela **acende sozinha quando o carro
-  começa a andar** (acima de ~12 km/h) ou quando o celular é ligado no carregador, e já abre o
-  Waze + música. Enquanto o carro anda ou o celular carrega, a tela não apaga.
-- **Navegação pelo Waze**: botões *Casa*, *Trabalho* e *Waze*; o cartão no topo mostra a
-  instrução da notificação de navegação do Waze (quando a rota está ativa).
-- **Velocímetro pelo GPS** (km/h) em arco.
-- **Música pelo YouTube Music**: capa, nome, artista, tempo, anterior/play/próxima e volume.
-- **Modo relógio**: depois de um tempo sem toque, mostra hora grande, data, velocidade e música.
-  Qualquer toque volta ao painel.
-- **Gaveta de aplicativos** para abrir qualquer outro app (segure um app para ver os detalhes dele).
+- **Tela inicial no estilo Android Auto / CarPlay**:
+  - barra lateral com hora, bateria, Waze, YouTube Music, Telefone, modo carro e gaveta de apps;
+  - **mapa escuro** (OpenStreetMap) que acompanha o GPS, com a próxima manobra e
+    chegada / tempo / distância lidas da notificação do Waze;
+  - **velocímetro** pelo GPS com **alerta de velocidade** (toque no círculo vermelho para mudar);
+  - cartão de **música** (YouTube Music) e atalhos **Buscar, Postos, Restaurantes, Mais** (abrem no Waze).
+- **Waze numa janela sobre o mapa**: em celulares que aceitam janelas (pop-up da Samsung /
+  "freeform"), o Waze abre exatamente em cima do cartão do mapa, com o velocímetro e a música
+  ao lado. Se o celular não aceitar, abre em tela cheia com o painel de música à direita
+  (dá para escolher em Ajustes → "Como abrir o Waze").
+- **Tela automática**: a tela acende sozinha quando o carro começa a andar (acima de ~12 km/h)
+  ou quando o celular é ligado no carregador. Enquanto anda ou carrega, a tela não apaga.
 
 ## Instalar
 

@@ -2,6 +2,7 @@ package com.edson.carlauncher
 
 import android.Manifest
 import android.app.Activity
+import android.app.ActivityOptions
 import android.app.AlertDialog
 import android.app.KeyguardManager
 import android.bluetooth.BluetoothAdapter
@@ -10,8 +11,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
+import android.graphics.Rect
 import android.graphics.drawable.Drawable
-import android.media.AudioManager
+import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
@@ -24,7 +27,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.BaseAdapter
-import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.GridView
 import android.widget.ImageView
 import android.widget.TextView
@@ -38,31 +41,32 @@ class MainActivity : Activity() {
 
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var prefs: SharedPreferences
-    private lateinit var audio: AudioManager
 
-    // Navegação / velocímetro
-    private lateinit var speedo: SpeedometerView
+    // Mapa / navegação
+    private var carMap: CarMap? = null
+    private lateinit var mapCard: View
+    private lateinit var meArrow: ImageView
+    private lateinit var mapStatus: TextView
+    private lateinit var compass: TextView
     private lateinit var navIcon: ImageView
     private lateinit var navTitle: TextView
     private lateinit var navText: TextView
+    private lateinit var etaArrive: TextView
+    private lateinit var etaTime: TextView
+    private lateinit var etaDist: TextView
+
+    // Velocímetro
+    private lateinit var speedo: SpeedometerView
+    private lateinit var limitBadge: TextView
 
     // Música
     private lateinit var media: MediaViews
+    private lateinit var musicAppIcon: ImageView
+    private var musicIconPkg: String? = null
 
     // Status
     private lateinit var battery: TextView
     private lateinit var btIcon: ImageView
-
-    // Telas
-    private lateinit var homeScreen: View
-    private lateinit var dashScreen: View
-    private lateinit var railClock: View
-    private lateinit var btnHome: View
-    private lateinit var btnDash: View
-    private lateinit var homeDate: TextView
-    private lateinit var homeGreeting: TextView
-    private lateinit var homeBattery: TextView
-    private lateinit var homeBt: ImageView
 
     // Camadas
     private lateinit var idleLayer: View
@@ -79,58 +83,80 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         prefs = getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE)
-        audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-        speedo = findViewById(R.id.speedo)
+        mapCard = findViewById(R.id.mapCard)
+        meArrow = findViewById(R.id.meArrow)
+        mapStatus = findViewById(R.id.mapStatus)
+        compass = findViewById(R.id.compass)
         navIcon = findViewById(R.id.navIcon)
         navTitle = findViewById(R.id.navTitle)
         navText = findViewById(R.id.navText)
+        etaArrive = findViewById(R.id.etaArrive)
+        etaTime = findViewById(R.id.etaTime)
+        etaDist = findViewById(R.id.etaDist)
+        speedo = findViewById(R.id.speedo)
+        limitBadge = findViewById(R.id.limitBadge)
+        musicAppIcon = findViewById(R.id.musicAppIcon)
         battery = findViewById(R.id.battery)
         btIcon = findViewById(R.id.btIcon)
         idleLayer = findViewById(R.id.idleLayer)
         idleContent = findViewById(R.id.idleContent)
         idleInfo = findViewById(R.id.idleInfo)
         appsLayer = findViewById(R.id.appsLayer)
-        homeScreen = findViewById(R.id.homeScreen)
-        dashScreen = findViewById(R.id.dashScreen)
-        railClock = findViewById(R.id.railClock)
-        btnHome = findViewById(R.id.btnHome)
-        btnDash = findViewById(R.id.btnDash)
-        homeDate = findViewById(R.id.homeDate)
-        homeGreeting = findViewById(R.id.homeGreeting)
-        homeBattery = findViewById(R.id.homeBattery)
-        homeBt = findViewById(R.id.homeBt)
 
-        media = MediaViews(findViewById(R.id.dashScreen))
+        // Mapa (cantos arredondados)
+        mapCard.clipToOutline = true
+        try {
+            carMap = CarMap(this, findViewById<FrameLayout>(R.id.mapHost)).also {
+                it.headingUp = prefs.getBoolean(Prefs.HEADING_UP, true)
+            }
+        } catch (e: Exception) {
+            mapStatus.text = "Mapa indisponível"
+        }
+        updateCompass()
+
+        media = MediaViews(findViewById(R.id.musicCard))
 
         // Barra lateral
-        btnHome.setOnClickListener { closeOverlays(); showScreen(false) }
-        btnDash.setOnClickListener { closeOverlays(); showScreen(true) }
-        findViewById<View>(R.id.btnSettings).setOnClickListener { showSettings() }
+        setRailIcon(findViewById(R.id.railWaze), appIcon(Launch.WAZE), R.drawable.ic_navigation)
+        setRailIcon(findViewById(R.id.railMusic), appIcon(Launch.YT_MUSIC), R.drawable.ic_music)
+        setRailIcon(findViewById(R.id.railPhone), dialerIcon(), R.drawable.ic_phone)
+        findViewById<View>(R.id.railWaze).setOnClickListener { openWaze(null) }
+        findViewById<View>(R.id.railMusic).setOnClickListener { Launch.openYtMusic(this) }
+        findViewById<View>(R.id.railPhone).setOnClickListener { openPhone() }
+        findViewById<View>(R.id.railCar).setOnClickListener { startCarMode(null) }
+        findViewById<View>(R.id.railApps).setOnClickListener { showApps() }
 
-        // Tela inicial
-        findViewById<View>(R.id.tileNav).setOnClickListener { startCarMode(null) }
-        findViewById<View>(R.id.tileMusic).setOnClickListener { Launch.openYtMusic(this) }
-        findViewById<View>(R.id.tilePhone).setOnClickListener { openPhone() }
-        findViewById<View>(R.id.tileApps).setOnClickListener { showApps() }
-        findViewById<View>(R.id.homeSettings).setOnClickListener { showSettings() }
-        showScreen(false)
+        // Mapa
+        findViewById<View>(R.id.navCard).setOnClickListener { openWaze(null) }
+        findViewById<View>(R.id.etaMore).setOnClickListener { openWaze(null) }
+        compass.setOnClickListener { toggleHeading() }
+        findViewById<View>(R.id.zoomIn).setOnClickListener { carMap?.zoomIn() }
+        findViewById<View>(R.id.zoomOut).setOnClickListener { carMap?.zoomOut() }
 
-        // Navegação
-        findViewById<View>(R.id.navCard).setOnClickListener { startCarMode(null) }
-        findViewById<View>(R.id.btnOpenWaze).setOnClickListener { startCarMode(null) }
-        findViewById<View>(R.id.btnGoHome).setOnClickListener { startCarMode("waze://?favorite=home&navigate=yes") }
-        findViewById<View>(R.id.btnGoWork).setOnClickListener { startCarMode("waze://?favorite=work&navigate=yes") }
+        // Velocímetro
+        limitBadge.setOnClickListener { chooseLimit() }
+        applyLimit()
+
+        // Música
+        musicAppIcon.setOnClickListener { Launch.openYtMusic(this) }
+
+        // Atalhos
+        findViewById<View>(R.id.actSearch).setOnClickListener { openWaze(null) }
+        findViewById<View>(R.id.actFuel).setOnClickListener { openWaze("waze://?q=" + Uri.encode("posto de gasolina")) }
+        findViewById<View>(R.id.actFood).setOnClickListener { openWaze("waze://?q=" + Uri.encode("restaurante")) }
+        findViewById<View>(R.id.actMore).setOnClickListener { showMore() }
 
         // Gaveta de apps
         val grid = findViewById<GridView>(R.id.appsGrid)
         grid.adapter = appsAdapter
         grid.setOnItemClickListener { _, _, pos, _ -> launchApp(appsAdapter.items[pos]) }
         grid.setOnItemLongClickListener { _, _, pos, _ ->
-            openAppDetails(appsAdapter.items[pos].pkg)
+            Launch.openAppDetails(this, appsAdapter.items[pos].pkg)
             true
         }
         findViewById<View>(R.id.appsClose).setOnClickListener { appsLayer.visibility = View.GONE }
+        findViewById<View>(R.id.appsSettings).setOnClickListener { showSettings() }
 
         // Modo relógio: qualquer toque volta ao painel
         idleLayer.setOnClickListener { exitIdle() }
@@ -153,7 +179,6 @@ class MainActivity : Activity() {
         SpeedState.addListener(speedListener)
         updateSpeed()
         MediaHub.subscribe(this, mediaListener)
-        updateHomeTexts()
         handler.post(ticker)
         scheduleIdle()
     }
@@ -161,11 +186,17 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         hideSystemBars()
+        carMap?.onResume()
         // Voltou para a tela inicial: tira o painel de cima do Waze
         CarService.instance?.hidePanel()
         // Pode ter voltado da tela de permissões
         MediaHub.connect()
         CarService.start(this)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        carMap?.onPause()
     }
 
     override fun onStop() {
@@ -184,9 +215,8 @@ class MainActivity : Activity() {
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        // Botão "home" apertado com o launcher já aberto: volta à tela inicial
+        // Botão "home" apertado com o launcher já aberto
         closeOverlays()
-        showScreen(false)
         handleWake(intent)
     }
 
@@ -224,27 +254,18 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun showScreen(dash: Boolean) {
-        homeScreen.visibility = if (dash) View.GONE else View.VISIBLE
-        dashScreen.visibility = if (dash) View.VISIBLE else View.GONE
-        railClock.visibility = if (dash) View.VISIBLE else View.INVISIBLE
-        btnHome.setBackgroundResource(if (dash) R.drawable.bg_btn else R.drawable.bg_btn_selected)
-        btnDash.setBackgroundResource(if (dash) R.drawable.bg_btn_selected else R.drawable.bg_btn)
-    }
-
-    private fun updateHomeTexts() {
-        val now = Calendar.getInstance()
-        val ptBr = Locale("pt", "BR")
-        val date = SimpleDateFormat("EEEE, d 'de' MMMM", ptBr).format(now.time)
-        homeDate.text = date.replaceFirstChar { it.titlecase(ptBr) }
-        val hour = now.get(Calendar.HOUR_OF_DAY)
-        val hello = when {
-            hour in 5..11 -> "Bom dia"
-            hour in 12..17 -> "Boa tarde"
-            else -> "Boa noite"
+    @Suppress("DEPRECATION")
+    private fun allowOverLockScreen() {
+        // Deixa o painel aparecer quando a tela acende sozinha (sem precisar desbloquear)
+        if (Build.VERSION.SDK_INT >= 27) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
         }
-        val name = prefs.getString(Prefs.NAME, "Edson").orEmpty().trim()
-        homeGreeting.text = if (name.isEmpty()) "$hello." else "$hello, $name."
     }
 
     private fun closeOverlays() {
@@ -259,7 +280,7 @@ class MainActivity : Activity() {
         override fun run() {
             media.tick()
             tickCount++
-            if (tickCount % 20 == 0) updateHomeTexts()
+            if (tickCount % 30 == 0) fillEta()
             if (idleLayer.visibility == View.VISIBLE) {
                 updateIdleInfo()
                 // Move o relógio um pouco a cada minuto para não marcar a tela
@@ -275,12 +296,17 @@ class MainActivity : Activity() {
 
     private fun scheduleIdle() {
         handler.removeCallbacks(idleRunnable)
-        val secs = prefs.getInt(Prefs.IDLE, 60)
+        val secs = prefs.getInt(Prefs.IDLE, 0)
         if (secs > 0 && started) handler.postDelayed(idleRunnable, secs * 1000L)
     }
 
     private fun enterIdle() {
         if (idleLayer.visibility == View.VISIBLE) return
+        // Andando, o painel continua na tela
+        if (SpeedState.hasFix && SpeedState.kmh >= 10) {
+            scheduleIdle()
+            return
+        }
         appsLayer.visibility = View.GONE
         updateIdleInfo()
         idleLayer.alpha = 0f
@@ -317,13 +343,60 @@ class MainActivity : Activity() {
             .setDuration(2000).start()
     }
 
-    // ---------------------------------------------------------------- velocímetro
+    // ---------------------------------------------------------------- velocímetro e mapa
 
     private val speedListener: () -> Unit = { updateSpeed() }
 
     private fun updateSpeed() {
         val status = SpeedState.status
         if (status != null) speedo.setStatus(status) else speedo.setSpeed(SpeedState.kmh.toFloat())
+
+        if (SpeedState.hasLocation) {
+            mapStatus.visibility = View.GONE
+            carMap?.update()
+            meArrow.rotation = carMap?.arrowRotation() ?: 0f
+        } else {
+            mapStatus.visibility = View.VISIBLE
+            mapStatus.text = status ?: "Procurando GPS…"
+        }
+    }
+
+    private fun toggleHeading() {
+        val map = carMap ?: return
+        map.headingUp = !map.headingUp
+        prefs.edit().putBoolean(Prefs.HEADING_UP, map.headingUp).apply()
+        meArrow.rotation = map.arrowRotation()
+        updateCompass()
+        Toast.makeText(
+            this,
+            if (map.headingUp) "Mapa gira com o carro" else "Norte sempre para cima",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun updateCompass() {
+        compass.alpha = if (carMap?.headingUp == false) 1f else 0.75f
+    }
+
+    private fun applyLimit() {
+        val limit = prefs.getInt(Prefs.SPEED_LIMIT, 80)
+        speedo.limit = limit
+        limitBadge.text = if (limit > 0) limit.toString() else "–"
+        limitBadge.alpha = if (limit > 0) 1f else 0.4f
+    }
+
+    private fun chooseLimit() {
+        val options = intArrayOf(0, 40, 50, 60, 70, 80, 90, 100, 110, 120)
+        val labels = options.map { if (it == 0) "Sem alerta" else "$it km/h" }.toTypedArray()
+        val current = options.indexOf(prefs.getInt(Prefs.SPEED_LIMIT, 80)).coerceAtLeast(0)
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setTitle("Alerta de velocidade")
+            .setSingleChoiceItems(labels, current) { d, which ->
+                prefs.edit().putInt(Prefs.SPEED_LIMIT, options[which]).apply()
+                applyLimit()
+                d.dismiss()
+            }
+            .show()
     }
 
     private fun hasLocationPermission() = CarService.hasLocationPermission(this)
@@ -335,26 +408,86 @@ class MainActivity : Activity() {
     private fun updateNav() {
         if (NavState.active) {
             navTitle.text = NavState.title ?: "Navegando"
-            navText.text = NavState.text ?: "Toque para ver o mapa"
+            navText.text = NavState.text ?: "Toque para ver no Waze"
             val icon: Drawable? = NavState.icon
-            if (icon != null) {
-                navIcon.clearColorFilter()
-                navIcon.setImageDrawable(icon)
-            } else {
-                navIcon.setImageResource(R.drawable.ic_turn)
-                navIcon.setColorFilter(accentColor())
-            }
+            if (icon != null) navIcon.setImageDrawable(icon) else navIcon.setImageResource(R.drawable.ic_turn)
         } else {
-            navTitle.text = "Waze"
-            navText.text = "Toque para abrir a navegação"
-            navIcon.setImageResource(R.drawable.ic_navigation)
-            navIcon.setColorFilter(accentColor())
+            navTitle.text = "Para onde?"
+            navText.text = "Toque para abrir o Waze"
+            navIcon.setImageResource(R.drawable.ic_search)
+        }
+        fillEta()
+    }
+
+    /**
+     * Preenche chegada / tempo / distância com o que der para ler da notificação do Waze
+     * (ex.: "Chegada 18:32 • 8 min • 4,5 km").
+     */
+    private fun fillEta() {
+        if (!NavState.active) {
+            etaArrive.text = "--"
+            etaTime.text = "--"
+            etaDist.text = "--"
+            return
+        }
+        val all = listOfNotNull(NavState.title, NavState.text).joinToString("  ")
+        val minutesMatch = Regex("(?:(\\d+)\\s*h\\s*)?(\\d+)\\s*min", RegexOption.IGNORE_CASE).find(all)
+        val arrive = Regex("\\b([01]?\\d|2[0-3]):[0-5]\\d\\b").find(all)?.value
+        val dist = Regex("\\d+(?:[.,]\\d+)?\\s*(?:km|m)\\b", RegexOption.IGNORE_CASE).findAll(all).lastOrNull()?.value
+
+        etaTime.text = minutesMatch?.value ?: "--"
+        etaDist.text = dist ?: "--"
+        etaArrive.text = arrive ?: minutesMatch?.let {
+            val h = it.groupValues[1].toIntOrNull() ?: 0
+            val m = it.groupValues[2].toIntOrNull() ?: 0
+            val c = Calendar.getInstance()
+            c.add(Calendar.MINUTE, h * 60 + m)
+            SimpleDateFormat("HH:mm", Locale.getDefault()).format(c.time)
+        } ?: "--"
+    }
+
+    private fun freeformSupported(): Boolean {
+        if (Build.VERSION.SDK_INT < 24) return false
+        return packageManager.hasSystemFeature(PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT) ||
+                Settings.Global.getInt(contentResolver, "enable_freeform_support", 0) != 0
+    }
+
+    /**
+     * Abre o Waze. Se o celular aceitar janelas (pop-up da Samsung / freeform), o Waze
+     * abre numa janela exatamente em cima do cartão do mapa; senão abre em tela cheia
+     * com o painel de música ao lado.
+     */
+    private fun openWaze(deepLink: String?) {
+        val mode = prefs.getInt(Prefs.WAZE_WINDOW, WINDOW_AUTO)
+        val useWindow = Build.VERSION.SDK_INT >= 24 &&
+                (mode == WINDOW_ALWAYS || (mode == WINDOW_AUTO && freeformSupported()))
+        if (!useWindow) {
+            startCarMode(deepLink)
+            return
+        }
+        val intent = if (deepLink != null) {
+            Intent(Intent.ACTION_VIEW, Uri.parse(deepLink))
+        } else {
+            packageManager.getLaunchIntentForPackage(Launch.WAZE)
+        }
+        if (intent == null) {
+            Launch.openWaze(this, null) // mostra o aviso e abre a loja
+            return
+        }
+        val loc = IntArray(2)
+        mapCard.getLocationOnScreen(loc)
+        val bounds = Rect(loc[0], loc[1], loc[0] + mapCard.width, loc[1] + mapCard.height)
+        try {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent, ActivityOptions.makeBasic().setLaunchBounds(bounds).toBundle())
+        } catch (e: Exception) {
+            startCarMode(deepLink)
         }
     }
 
     /**
      * Modo carro: abre o Waze em tela cheia e coloca o painel de música à direita,
-     * por cima dele (estilo Android Auto).
+     * por cima dele.
      */
     private fun startCarMode(deepLink: String?) {
         if (!Launch.canOverlay(this)) {
@@ -382,35 +515,75 @@ class MainActivity : Activity() {
             val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
             km.requestDismissKeyguard(this, null)
         }
-        if (prefs.getBoolean(Prefs.CAR_MODE_ON_WAKE, true)) {
-            handler.postDelayed({ startCarMode(null) }, 600)
+        if (prefs.getBoolean(Prefs.CAR_MODE_ON_WAKE, false)) {
+            handler.postDelayed({ openWaze(null) }, 800)
         }
     }
 
-    @Suppress("DEPRECATION")
-    private fun allowOverLockScreen() {
-        // Deixa o painel aparecer quando a tela acende sozinha (sem precisar desbloquear)
-        if (Build.VERSION.SDK_INT >= 27) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
-        } else {
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-            )
-        }
+    // ---------------------------------------------------------------- música
+
+    private val mediaListener: () -> Unit = {
+        media.update()
+        updateMusicAppIcon()
     }
 
-    // ---------------------------------------------------------------- música (YouTube Music)
-
-    private val mediaListener: () -> Unit = { media.update() }
+    private fun updateMusicAppIcon() {
+        val pkg = MediaHub.controller?.packageName ?: Launch.YT_MUSIC
+        if (pkg == musicIconPkg) return
+        musicIconPkg = pkg
+        val icon = appIcon(pkg)
+        if (icon != null) musicAppIcon.setImageDrawable(icon) else musicAppIcon.setImageResource(R.drawable.ic_music)
+    }
 
     private fun hasNotificationAccess() = MediaHub.hasAccess(this)
 
+    // ---------------------------------------------------------------- ícones dos apps
+
+    private fun appIcon(pkg: String): Drawable? = try {
+        packageManager.getApplicationIcon(pkg)
+    } catch (e: Exception) {
+        null
+    }
+
+    private fun dialerIcon(): Drawable? = try {
+        val info = packageManager.resolveActivity(Intent(Intent.ACTION_DIAL), PackageManager.MATCH_DEFAULT_ONLY)
+        if (info == null || info.activityInfo.packageName == "android") null else info.loadIcon(packageManager)
+    } catch (e: Exception) {
+        null
+    }
+
+    private fun setRailIcon(view: ImageView, icon: Drawable?, fallback: Int) {
+        if (icon != null) {
+            view.setImageDrawable(icon)
+        } else {
+            view.setImageResource(fallback)
+            view.setBackgroundResource(R.drawable.bg_tile_dark)
+            val pad = (resources.displayMetrics.density * 12).toInt()
+            view.setPadding(pad, pad, pad, pad)
+        }
+    }
+
     private fun openPhone() {
-        if (!safeStart(Intent(Intent.ACTION_DIAL))) {
+        if (!Launch.safeStart(this, Intent(Intent.ACTION_DIAL))) {
             Toast.makeText(this, "Telefone não encontrado", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    /** "Mais": outros destinos no Waze, Casa/Trabalho e apps. */
+    private fun showMore() {
+        val items = listOf(
+            item("Casa") { openWaze("waze://?favorite=home&navigate=yes") },
+            item("Trabalho") { openWaze("waze://?favorite=work&navigate=yes") },
+            item("Estacionamento") { openWaze("waze://?q=" + Uri.encode("estacionamento")) },
+            item("Farmácia") { openWaze("waze://?q=" + Uri.encode("farmácia")) },
+            item("Mercado") { openWaze("waze://?q=" + Uri.encode("supermercado")) },
+            item("Waze em tela cheia + música") { startCarMode(null) },
+            item("Todos os aplicativos") { showApps() },
+            item("Ajustes") { showSettings() }
+        )
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setItems(items.map { it.first }.toTypedArray()) { _, which -> items[which].second() }
+            .show()
     }
 
     // ---------------------------------------------------------------- bateria / bluetooth
@@ -423,8 +596,7 @@ class MainActivity : Activity() {
                 val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0
                 if (level >= 0 && scale > 0) {
                     val pct = level * 100 / scale
-                    battery.text = if (plugged) "⚡ $pct%" else "$pct%"
-                    homeBattery.text = battery.text
+                    battery.text = if (plugged) "⚡$pct%" else "$pct%"
                 }
             }
             updateBluetooth()
@@ -439,7 +611,6 @@ class MainActivity : Activity() {
             false
         }
         btIcon.visibility = if (on) View.VISIBLE else View.GONE
-        homeBt.visibility = btIcon.visibility
     }
 
     // ---------------------------------------------------------------- gaveta de apps
@@ -499,33 +670,34 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun openAppDetails(pkg: String) = Launch.openAppDetails(this, pkg)
-
     // ---------------------------------------------------------------- ajustes
 
     private fun showSettings() {
-        val idleSecs = prefs.getInt(Prefs.IDLE, 60)
-        fun yes(key: String) = prefs.getBoolean(key, true)
-        fun yn(key: String) = if (yes(key)) "Sim" else "Não"
+        fun yn(key: String, default: Boolean) = if (prefs.getBoolean(key, default)) "Sim" else "Não"
         fun ok(v: Boolean) = if (v) "  ✓" else ""
+        val windowLabels = arrayOf("Automático", "Sempre em janela", "Tela cheia + painel")
+        val limit = prefs.getInt(Prefs.SPEED_LIMIT, 80)
         val actions = listOf(
-            item("Permitir controle de música e Waze" + ok(hasNotificationAccess())) { openNotificationAccess() },
-            item("Permitir GPS (velocímetro)" + ok(hasLocationPermission())) { requestLocation() },
+            item("Permitir controle de música e Waze" + ok(hasNotificationAccess())) { Launch.openNotificationAccess(this) },
+            item("Permitir GPS (velocímetro e mapa)" + ok(hasLocationPermission())) { requestLocation() },
             item("Permitir aparecer sobre outros apps" + ok(Launch.canOverlay(this))) { Launch.openOverlaySettings(this) },
-            item("Ligar a tela quando o carro andar: " + yn(Prefs.WAKE_ON_MOVE)) { toggle(Prefs.WAKE_ON_MOVE) },
-            item("Ligar a tela ao conectar o carregador: " + yn(Prefs.WAKE_ON_POWER)) { toggle(Prefs.WAKE_ON_POWER) },
-            item("Ao ligar a tela, abrir Waze + música: " + yn(Prefs.CAR_MODE_ON_WAKE)) { toggle(Prefs.CAR_MODE_ON_WAKE) },
-            item("Tela sempre ligada no carregador: " + yn(Prefs.KEEP_ON)) {
-                toggle(Prefs.KEEP_ON)
+            item("Como abrir o Waze: " + windowLabels[prefs.getInt(Prefs.WAZE_WINDOW, WINDOW_AUTO).coerceIn(0, 2)]) { chooseWazeWindow() },
+            item("Alerta de velocidade: " + if (limit > 0) "$limit km/h" else "Desligado") { chooseLimit() },
+            item("Ligar a tela quando o carro andar: " + yn(Prefs.WAKE_ON_MOVE, true)) { toggle(Prefs.WAKE_ON_MOVE, true) },
+            item("Ligar a tela ao conectar o carregador: " + yn(Prefs.WAKE_ON_POWER, true)) { toggle(Prefs.WAKE_ON_POWER, true) },
+            item("Ao ligar a tela, abrir o Waze: " + yn(Prefs.CAR_MODE_ON_WAKE, false)) { toggle(Prefs.CAR_MODE_ON_WAKE, false) },
+            item("Tela sempre ligada no carregador: " + yn(Prefs.KEEP_ON, true)) {
+                toggle(Prefs.KEEP_ON, true)
                 applyKeepScreenOn()
             },
-            item("Modo relógio: " + idleLabel(idleSecs)) { chooseIdle() },
-            item("Seu nome (saudação): " + prefs.getString(Prefs.NAME, "Edson")) { editName() },
+            item("Modo relógio: " + idleLabel(prefs.getInt(Prefs.IDLE, 0))) { chooseIdle() },
             item("Usar como tela inicial do celular") {
-                if (!safeStart(Intent(Settings.ACTION_HOME_SETTINGS))) safeStart(Intent(Settings.ACTION_SETTINGS))
+                if (!Launch.safeStart(this, Intent(Settings.ACTION_HOME_SETTINGS))) {
+                    Launch.safeStart(this, Intent(Settings.ACTION_SETTINGS))
+                }
             },
-            item("Liberar configurações restritas (Android 13+)") { openAppDetails(packageName) },
-            item("Configurações do Android") { safeStart(Intent(Settings.ACTION_SETTINGS)) }
+            item("Liberar configurações restritas (Android 13+)") { Launch.openAppDetails(this, packageName) },
+            item("Configurações do Android") { Launch.safeStart(this, Intent(Settings.ACTION_SETTINGS)) }
         )
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
             .setTitle("Ajustes")
@@ -536,23 +708,22 @@ class MainActivity : Activity() {
 
     private fun item(label: String, action: () -> Unit) = label to action
 
-    private fun toggle(key: String) {
-        prefs.edit().putBoolean(key, !prefs.getBoolean(key, true)).apply()
+    private fun toggle(key: String, default: Boolean) {
+        prefs.edit().putBoolean(key, !prefs.getBoolean(key, default)).apply()
     }
 
-    private fun editName() {
-        val input = EditText(this)
-        input.setText(prefs.getString(Prefs.NAME, "Edson"))
-        input.setSingleLine()
+    private fun chooseWazeWindow() {
+        val labels = arrayOf(
+            "Automático (janela se o celular permitir)",
+            "Sempre em janela sobre o mapa",
+            "Tela cheia com painel de música"
+        )
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
-            .setTitle("Seu nome")
-            .setView(input)
-            .setPositiveButton("Salvar") { _, _ ->
-                prefs.edit().putString(Prefs.NAME, input.text.toString().trim()).apply()
-                updateHomeTexts()
-                hideSystemBars()
+            .setTitle("Como abrir o Waze")
+            .setSingleChoiceItems(labels, prefs.getInt(Prefs.WAZE_WINDOW, WINDOW_AUTO).coerceIn(0, 2)) { d, which ->
+                prefs.edit().putInt(Prefs.WAZE_WINDOW, which).apply()
+                d.dismiss()
             }
-            .setNegativeButton("Cancelar", null)
             .show()
     }
 
@@ -563,11 +734,11 @@ class MainActivity : Activity() {
     }
 
     private fun chooseIdle() {
-        val options = intArrayOf(30, 60, 120, 300, 0)
+        val options = intArrayOf(0, 30, 60, 120, 300)
         val labels = options.map { idleLabel(it) }.toTypedArray()
-        val current = options.indexOf(prefs.getInt(Prefs.IDLE, 60)).coerceAtLeast(0)
+        val current = options.indexOf(prefs.getInt(Prefs.IDLE, 0)).coerceAtLeast(0)
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
-            .setTitle("Mostrar relógio depois de")
+            .setTitle("Mostrar relógio grande depois de")
             .setSingleChoiceItems(labels, current) { d, which ->
                 prefs.edit().putInt(Prefs.IDLE, options[which]).apply()
                 scheduleIdle()
@@ -589,8 +760,8 @@ class MainActivity : Activity() {
                             "Se a opção estiver bloqueada (Android 13+/Samsung): toque em " +
                             "\"Liberar\", depois no menu ⋮ e em \"Permitir configurações restritas\"."
                 )
-                .setNeutralButton("Liberar") { _, _ -> openAppDetails(packageName) }
-                .setPositiveButton("Permitir") { _, _ -> openNotificationAccess() }
+                .setNeutralButton("Liberar") { _, _ -> Launch.openAppDetails(this, packageName) }
+                .setPositiveButton("Permitir") { _, _ -> Launch.openNotificationAccess(this) }
                 .setNegativeButton("Agora não", null)
                 .show()
         }
@@ -624,15 +795,10 @@ class MainActivity : Activity() {
         if (requestCode == REQ_LOCATION) CarService.start(this)
     }
 
-    private fun openNotificationAccess() = Launch.openNotificationAccess(this)
-
-    private fun safeStart(intent: Intent) = Launch.safeStart(this, intent)
-
-    @Suppress("DEPRECATION")
-    private fun accentColor() = resources.getColor(R.color.accent)
-
     companion object {
         const val EXTRA_WAKE = "wake"
         const val REQ_LOCATION = 1
+        const val WINDOW_AUTO = 0
+        const val WINDOW_ALWAYS = 1
     }
 }
