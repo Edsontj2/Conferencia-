@@ -8,7 +8,7 @@ import { HttpError } from './schedules.js';
 import * as repo from './repo.js';
 import { findNameMatches, normalizeBrPhone, pickPerson } from '../shared/names.js';
 import { phoneProblem } from '../shared/whatsapp.js';
-import { sundayOf } from '../shared/time.js';
+import { serviceMinutes, sundayOf } from '../shared/time.js';
 import { publishedExtra, publishedExtras, sendPublishedFile } from './extras.js';
 
 /**
@@ -145,8 +145,16 @@ export function registerEmployeeRoutes(app: Express, db: Database, secure: (req:
         (SELECT COUNT(*) FROM schedule_entries e WHERE e.schedule_id = s.id AND (e.driver_id = ? OR e.conductor_id = ?)) AS mine
        FROM schedules s WHERE s.status = 'confirmada' ORDER BY s.saturday DESC LIMIT 60`, [pid ?? -1, pid ?? -1]));
     const extras = await real((q) => publishedExtras(q, pid));
+    // horas estimadas da pessoa em cada escala (soma das durações dos serviços dela)
+    const mins = new Map<number, number>();
+    if (pid != null) {
+      const es = await real((q) => q<{ schedule_id: number; start_time: string; end_time: string }>(
+        `SELECT e.schedule_id, e.start_time, e.end_time FROM schedule_entries e JOIN schedules s ON s.id = e.schedule_id
+         WHERE s.status = 'confirmada' AND (e.driver_id = ? OR e.conductor_id = ?)`, [pid, pid]));
+      for (const e of es) mins.set(Number(e.schedule_id), (mins.get(Number(e.schedule_id)) ?? 0) + serviceMinutes(e.start_time, e.end_time));
+    }
     const items = [
-      ...rows.map((r) => ({ kind: 'fds' as const, id: Number(r.id), date: r.saturday, saturday: r.saturday, sunday: sundayOf(r.saturday), mine: Number(r.mine) })),
+      ...rows.map((r) => ({ kind: 'fds' as const, id: Number(r.id), date: r.saturday, saturday: r.saturday, sunday: sundayOf(r.saturday), mine: Number(r.mine), minutes: mins.get(Number(r.id)) ?? 0 })),
       ...extras.map((x) => ({ kind: 'avulsa' as const, ...x })),
     ].sort((a, b) => b.date.localeCompare(a.date));
     res.json(items);

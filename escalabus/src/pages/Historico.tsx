@@ -6,7 +6,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Empty, Field, fmtDateTime, StatusBadge } from '../components/ui';
 import type { ScheduleMeta } from '../types';
 import type { Entry } from '../../shared/types';
-import { addDays, dayLabel, fmtDate, todayLocal } from '../../shared/time';
+import { addDays, dayLabel, fmtDate, fmtHours, serviceMinutes, todayLocal } from '../../shared/time';
 
 type Row = Entry & { scheduleId: number; status: string; saturday: string };
 
@@ -88,12 +88,13 @@ export function HistoricoPage() {
       ))}
       {tab === 'participacoes' && rows && (rows.length === 0 ? <Empty>Nenhum registro com esses filtros.</Empty> : (
         <>
+          <HoursSummary rows={rows} pid={pid} />
           <p className="muted small">{rows.length} registro(s). Os nomes, linhas e carros são os gravados em cada escala (preservados mesmo se o cadastro mudar).</p>
           <div className="table-wrap"><table className="table">
-            <thead><tr><th>Data</th><th>Turno</th><th>Horário</th><th>Linha</th><th>Carro</th><th>Placa</th><th>Motorista</th><th>Cobrador</th><th>Status</th></tr></thead>
+            <thead><tr><th>Data</th><th>Turno</th><th>Horário</th><th>Horas</th><th>Linha</th><th>Carro</th><th>Placa</th><th>Motorista</th><th>Cobrador</th><th>Status</th></tr></thead>
             <tbody>{rows.map((r) => (
               <tr key={r.id}>
-                <td className="nowrap">{dayLabel(r.date)} {fmtDate(r.date)}</td><td>{r.shiftName}</td><td className="nowrap">{r.startTime}–{r.endTime}</td>
+                <td className="nowrap">{dayLabel(r.date)} {fmtDate(r.date)}</td><td>{r.shiftName}</td><td className="nowrap">{r.startTime}–{r.endTime}</td><td className="muted">{fmtHours(serviceMinutes(r.startTime, r.endTime))}</td>
                 <td>{r.lineCode}</td><td>{r.busFleet}</td><td className="muted">{r.busPlate}</td>
                 <td className={pid && r.driverId === pid ? 'strong' : ''}>{r.driverName || '—'}</td>
                 <td className={pid && r.conductorId === pid ? 'strong' : ''}>{r.conductorName || '—'}</td>
@@ -104,5 +105,34 @@ export function HistoricoPage() {
         </>
       ))}
     </div>
+  );
+}
+
+/** Horas estimadas (início até a rendição) por pessoa no período filtrado. */
+function HoursSummary({ rows, pid }: { rows: Row[]; pid: number }) {
+  const per = new Map<string, { name: string; role: string; min: number; n: number }>();
+  for (const r of rows) {
+    const min = serviceMinutes(r.startTime, r.endTime);
+    for (const [id, name, role] of [[r.driverId, r.driverName, 'Motorista'], [r.conductorId, r.conductorName, 'Cobrador']] as const) {
+      if (!name || (pid && id !== pid)) continue;
+      const k = `${id ?? name}|${role}`;
+      const cur = per.get(k) ?? { name, role, min: 0, n: 0 };
+      cur.min += min; cur.n++; per.set(k, cur);
+    }
+  }
+  const list = [...per.values()].sort((a, b) => b.min - a.min || a.name.localeCompare(b.name));
+  if (!list.length) return null;
+  if (pid) {
+    const p = list[0];
+    return <div className="alert alert-info">Horas estimadas de <b>{p.name}</b> no período: <b>{fmtHours(list.reduce((t, x) => t + x.min, 0))}</b> em {list.reduce((t, x) => t + x.n, 0)} serviço(s).</div>;
+  }
+  return (
+    <details className="panel" style={{ marginBottom: '1rem' }}>
+      <summary><b>Horas estimadas por pessoa</b> <span className="muted small">({list.length} pessoas · total {fmtHours(list.reduce((t, x) => t + x.min, 0))})</span></summary>
+      <div className="table-wrap" style={{ marginTop: '.7rem' }}><table className="table">
+        <thead><tr><th>Pessoa</th><th>Função</th><th>Serviços</th><th>Horas</th></tr></thead>
+        <tbody>{list.map((x) => <tr key={x.name + x.role}><td>{x.name}</td><td>{x.role}</td><td>{x.n}</td><td className="strong">{fmtHours(x.min)}</td></tr>)}</tbody>
+      </table></div>
+    </details>
   );
 }

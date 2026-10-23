@@ -123,3 +123,19 @@ export function fitsAvailability(date: string, start: string, end: string, avail
 export function durationLabel(start: string, end: string): string {
   return crossesMidnight(start, end) ? `${start}–${end} (+1 dia)` : `${start}–${end}`;
 }
+
+/** Duração do serviço em minutos (fim menor ou igual ao início = atravessa a meia-noite). Horário inválido = 0. */
+export function serviceMinutes(start: string, end: string): number {
+  if (!isValidHM(start) || !isValidHM(end)) return 0;
+  const s = parseHM(start);
+  let e = parseHM(end);
+  if (e <= s) e += 1440;
+  return e - s;
+}
+
+/** 411 → "6h51"; 420 → "7h"; 0 → "0h". */
+export function fmtHours(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  return m ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`;
+}
