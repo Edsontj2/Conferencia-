@@ -15,6 +15,7 @@ import { exportBackup, importBackup, validateBackup } from './backup.js';
 import { ensureDemoSeeded, seedDemo } from './demo.js';
 import { applySeeds } from './seed.js';
 import { registerEmployeeAdminRoutes, registerEmployeeRoutes } from './employees.js';
+import { registerExtraAdminRoutes } from './extras.js';
 import { isSaturday, isValidDate, isValidHM } from '../shared/time.js';
 import { serviceBusConflicts } from '../shared/rules.js';
 import { phoneProblem, normalizePhone } from '../shared/whatsapp.js';
@@ -202,6 +203,7 @@ export function createApp(opts: AppOptions) {
   });
 
   registerEmployeeAdminRoutes(app, db, (req) => A(req).auth.isAdmin, parse);
+  registerExtraAdminRoutes(app, db, (req) => A(req).auth.mode as Mode, (req) => A(req).auth.isAdmin, parse);
 
   /* ---------- usuários e acessos (somente administradores) ---------- */
   const adminOnly = (req: Request) => { if (!A(req).auth.isAdmin) throw new HttpError(403, 'Somente administradores podem gerenciar usuários.'); };

@@ -5,12 +5,15 @@ import { Icon } from '../components/Icons';
 import { Field, Modal } from '../components/ui';
 import { InstallButton } from '../components/InstallButton';
 import type { Entry } from '../../shared/types';
+import type { ExtraSchedule } from '../../shared/extras';
 import { buildReportDay } from '../../shared/report';
 import { crossesMidnight, dayLabel, fmtDate, todayLocal, weekdayOf, addDays } from '../../shared/time';
 import { formatPhone } from '../../shared/whatsapp';
 
 interface Me { phone: string; fullName: string; person: { id: number; name: string; role: string; shiftName: string } | null; companyName: string }
-interface WeekendItem { id: number; saturday: string; sunday: string; mine: number }
+type ListItem = { kind: 'fds'; id: number; date: string; saturday: string; sunday: string; mine: number }
+  | { kind: 'avulsa'; id: number; date: string; title: string; mine: number };
+const keyOf = (w: ListItem) => `${w.kind}:${w.id}`;
 interface Detail { id: number; saturday: string; sunday: string; entries: Entry[]; updatedAt: string }
 
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -133,8 +136,9 @@ function AuthScreen({ online, onDone }: { online: boolean; onDone: () => void })
 
 /* ---------------- Visualizador ---------------- */
 function Viewer({ me, online, onLogout }: { me: Me; online: boolean; onLogout: () => void }) {
-  const [list, setList] = useState<WeekendItem[] | null>(null);
-  const [sel, setSel] = useState<number | null>(null);
+  const [list, setList] = useState<ListItem[] | null>(null);
+  const [sel, setSel] = useState<string | null>(null);
+  const [extra, setExtra] = useState<ExtraSchedule | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [fromCache, setFromCache] = useState(false);
@@ -146,17 +150,28 @@ function Viewer({ me, online, onLogout }: { me: Me; online: boolean; onLogout: (
   const pid = me.person?.id ?? null;
 
   useEffect(() => {
-    getCached<WeekendItem[]>('/api/func/schedules').then((r) => {
-      setList(r.data);
+    getCached<ListItem[]>('/api/func/schedules').then((r) => {
+      const items = r.data.map((w) => (w.kind ? w : { ...(w as object), kind: 'fds', date: (w as { saturday: string }).saturday } as ListItem));
+      setList(items);
+      // abre a próxima escala (a mais próxima a partir de hoje; no fim de semana, a do fim de semana atual)
+      const today = todayLocal();
       const cur = currentSaturday();
-      const upcoming = [...r.data].filter((w) => w.saturday >= cur).sort((a, b) => a.saturday.localeCompare(b.saturday))[0];
-      setSel((upcoming ?? r.data[0])?.id ?? null);
+      const upcoming = [...items].filter((w) => (w.kind === 'fds' ? w.saturday >= cur : w.date >= today)).sort((a, b) => a.date.localeCompare(b.date))[0];
+      const first = upcoming ?? items[0];
+      setSel(first ? keyOf(first) : null);
     }).catch((e) => setErr(e.message));
   }, []);
   useEffect(() => {
     if (sel == null) return;
     setErr(null);
-    getCached<Detail>(`/api/func/schedules/${sel}`).then((r) => {
+    const [kind, idStr] = sel.split(':');
+    if (kind === 'avulsa') {
+      setDetail(null);
+      getCached<ExtraSchedule>(`/api/func/extras/${idStr}`).then((r) => { setExtra(r.data); setSavedAt(r.savedAt); setFromCache(r.fromCache); }).catch((e) => setErr(e.message));
+      return;
+    }
+    setExtra(null);
+    getCached<Detail>(`/api/func/schedules/${idStr}`).then((r) => {
       setDetail(r.data); setSavedAt(r.savedAt); setFromCache(r.fromCache);
       const mine = r.data.entries.filter((e) => e.driverId === pid || e.conductorId === pid);
       setDay(mine.length && mine.every((e) => e.date === r.data.sunday) ? 'sun' : 'sat');
@@ -181,11 +196,13 @@ function Viewer({ me, online, onLogout }: { me: Me; online: boolean; onLogout: (
         <nav className="sb-nav">
           <div className="sb-group-title">Histórico de escalas</div>
           {!list ? <p className="fa-muted-dark">Carregando…</p> : list.length === 0 ? <p className="fa-muted-dark">Nenhuma escala publicada ainda.</p> : list.map((w) => (
-            <button key={w.id} className={`sb-link fa-week ${sel === w.id ? 'active' : ''}`} onClick={() => { setSel(w.id); setMenu(false); setQ(''); }}>
-              <Icon.calendar />
+            <button key={keyOf(w)} className={`sb-link fa-week ${sel === keyOf(w) ? 'active' : ''}`} onClick={() => { setSel(keyOf(w)); setMenu(false); setQ(''); }}>
+              {w.kind === 'fds' ? <Icon.calendar /> : <Icon.image />}
               <span className="fa-week-text">
-                <span>{fmtDate(w.saturday).slice(0, 5)} e {fmtDate(w.sunday).slice(0, 5)}</span>
-                <small>{w.saturday.slice(0, 4)}{w.mine ? ' · você trabalha' : ''}</small>
+                {w.kind === 'fds'
+                  ? <span>{fmtDate(w.saturday).slice(0, 5)} e {fmtDate(w.sunday).slice(0, 5)}</span>
+                  : <span>{fmtDate(w.date).slice(0, 5)} · {w.title}</span>}
+                <small>{w.kind === 'fds' ? 'Fim de semana' : dayLabel(w.date)} · {w.date.slice(0, 4)}{w.mine ? ' · você trabalha' : ''}</small>
               </span>
               {w.mine > 0 && <span className="fa-dot" />}
             </button>
@@ -215,13 +232,14 @@ function Viewer({ me, online, onLogout }: { me: Me; online: boolean; onLogout: (
         <main className="content fa-content">
           <div className="ph">
             <div className="ph-text">
-              <h1>{detail ? 'Escala do fim de semana' : 'Minha escala'}</h1>
-              <p>{detail ? `Sábado e domingo · ${weekendText(detail.saturday)}` : me.companyName}</p>
+              <h1>{extra ? extra.title : detail ? 'Escala do fim de semana' : 'Minha escala'}</h1>
+              <p>{extra ? `${dayLabel(extra.date)} · ${fmtDate(extra.date)}` : detail ? `Sábado e domingo · ${weekendText(detail.saturday)}` : me.companyName}</p>
             </div>
           </div>
           {err && <div className="alert alert-err">{err}</div>}
-          {list && list.length === 0 && <div className="empty">Ainda não há escala confirmada. Volte mais tarde.</div>}
+          {list && list.length === 0 && <div className="empty">Ainda não há escala publicada. Volte mais tarde.</div>}
 
+          {extra && <ExtraView s={extra} pid={pid} linked={!!me.person} />}
           {detail && (
             <>
               <section className="fa-mine">
@@ -332,3 +350,93 @@ function PasswordDialog({ online, onClose }: { online: boolean; onClose: () => v
   );
 }
 
+
+/* ---------------- Escala importada (foto/PDF feita fora do sistema) ---------------- */
+function ExtraView({ s, pid, linked }: { s: ExtraSchedule; pid: number | null; linked: boolean }) {
+  const [q, setQ] = useState('');
+  const [photo, setPhoto] = useState<number | null>(null);
+  const mine = pid == null ? [] : s.rows.filter((r) => r.driverId === pid || r.conductorId === pid);
+  const term = q.trim().toLowerCase();
+  const rows = s.rows.filter((r) => !term || r.driverName.toLowerCase().includes(term) || r.conductorName.toLowerCase().includes(term) || r.line.includes(term) || r.bus.includes(term));
+  const isMine = (r: ExtraSchedule['rows'][number]) => pid != null && (r.driverId === pid || r.conductorId === pid);
+  return (
+    <>
+      {s.notes && <div className="alert alert-info">{s.notes}</div>}
+      <section className="fa-mine">
+        <h2>Meus serviços</h2>
+        {!linked ? (
+          <p className="muted">Seu cadastro ainda não foi vinculado ao seu nome na equipe. Veja a escala completa abaixo; a administração vai fazer o vínculo.</p>
+        ) : mine.length === 0 ? (
+          <div className="fa-free"><Icon.check /> Seu nome <strong>não aparece</strong> nesta escala. Confira a tabela e o arquivo original abaixo.</div>
+        ) : (
+          <div className="fa-mine-list">
+            {mine.map((r, i) => {
+              const isDriver = r.driverId === pid;
+              return (
+                <div key={i} className="fa-mine-card">
+                  <div className="fa-mine-day">{dayLabel(s.date)} <span>{fmtDate(s.date)}</span></div>
+                  <div className="fa-mine-time">{r.start || '—'}{r.end ? ` – ${r.end}` : ''}</div>
+                  <div className="fa-mine-info">
+                    <span>Linha <strong>{r.line || '—'}</strong></span>
+                    <span>Carro <strong>{r.bus || 'a definir'}</strong></span>
+                    {r.seq && <span>Seq <strong>{r.seq}</strong></span>}
+                  </div>
+                  <div className="fa-mine-partner">
+                    <span className={`role-badge ${isDriver ? 'motorista' : 'cobrador'}`}>{isDriver ? 'Você: motorista' : 'Você: cobrador(a)'}</span>
+                    <span>{isDriver ? 'Cobrador(a)' : 'Motorista'}: <strong>{(isDriver ? r.conductorName : r.driverName) || '—'}</strong></span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {s.files.length > 0 && (
+        <section className="fa-files">
+          <h2>Escala original</h2>
+          <div className="fa-files-list">
+            {s.files.map((f) => f.mime.startsWith('image/') ? (
+              <button key={f.id} className="fa-photo" onClick={() => setPhoto(f.id)}><img src={`/api/func/files/${f.id}`} alt={f.name} loading="lazy" /><span>Ampliar foto</span></button>
+            ) : (
+              <a key={f.id} className="btn" href={`/api/func/files/${f.id}`} target="_blank" rel="noreferrer"><Icon.pdf /> {f.name}</a>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {s.rows.length > 0 && (
+        <section className="sheet">
+          <label className="search fa-search" style={{ marginTop: '1rem' }}><Icon.search /><input type="search" placeholder="Procurar nome, linha ou carro…" value={q} onChange={(e) => setQ(e.target.value)} /></label>
+          <div className="table-wrap fa-table">
+            <table className="table">
+              <thead><tr><th>Seq</th><th>Carro</th><th>Hora</th><th>Linha</th><th>Rend.</th><th>Motorista</th><th>Cobrador</th></tr></thead>
+              <tbody>{rows.map((r, i) => (
+                <tr key={i} className={isMine(r) ? 'fa-row-mine' : ''}>
+                  <td className="muted">{r.seq}</td><td>{r.bus}</td><td className="strong">{r.start}</td><td>{r.line}</td><td>{r.end}</td>
+                  <td className={r.driverId != null && r.driverId === pid ? 'strong' : ''}>{r.driverName}</td>
+                  <td className={r.conductorId != null && r.conductorId === pid ? 'strong' : ''}>{r.conductorName}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+          <div className="fa-cards">
+            {rows.map((r, i) => (
+              <div key={i} className={`fa-card-row ${isMine(r) ? 'fa-row-mine' : ''}`}>
+                <div className="fa-card-top"><strong>{r.start}{r.end ? ` – ${r.end}` : ''}</strong><span>Linha {r.line || '—'} · Carro {r.bus || '—'}</span></div>
+                <div><span className="chip-cell chip-blue fa-chip">{r.driverName || '—'}</span></div>
+                <div><span className="chip-cell chip-amber fa-chip">{r.conductorName || '—'}</span></div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      {photo != null && (
+        <div className="fa-lightbox" onClick={() => setPhoto(null)} role="dialog" aria-label="Foto da escala">
+          <button className="fa-lightbox-close" aria-label="Fechar"><Icon.close /></button>
+          <img src={`/api/func/files/${photo}`} alt="Escala original" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
+    </>
+  );
+}

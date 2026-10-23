@@ -37,5 +37,7 @@ export const Icon = {
   user: () => <Svg size={16}><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></Svg>,
   chart: () => <Svg><path d="M5 21V10M12 21V4M19 21v-7" /></Svg>,
   chevronRight: () => <Svg><path d="m9 18 6-6-6-6" /></Svg>,
+  upload: () => <Svg><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5" /><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></Svg>,
+  image: () => <Svg><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.8" /><path d="m21 16-5-5-9 9" /></Svg>,
   wifiOff: () => <Svg><path d="M2 2l20 20" /><path d="M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 5.2-2.8M19 13a10 10 0 0 0-2.4-1.7M2 8.8a15 15 0 0 1 4.2-2.7M22 8.8A15 15 0 0 0 11 5" /><path d="M12 20h.01" /></Svg>,
 };

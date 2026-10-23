@@ -90,6 +90,7 @@
     <li><a href="#celular">Uso no celular e sem internet</a></li>
     <li><a href="#duvidas">Dúvidas frequentes</a></li>
     <li><a href="#equipe">App da equipe (funcionários)</a></li>
+    <li><a href="#importadas">Escalas importadas (foto, PDF ou planilha)</a></li>
   </ol>
 </nav>
 
@@ -360,6 +361,33 @@
   <figure><img src="img/40-equipe-computador.jpg" alt="App da equipe no computador" /><figcaption>App da equipe no computador: histórico de escalas na barra lateral.</figcaption></figure>
   <h3>13.3 Administração dos acessos</h3>
   <p>Em <b>Configurações → Acessos da equipe</b> o administrador vê quem se cadastrou, corrige o vínculo com a pessoa da escala, define nova senha ou exclui o acesso.</p>
+</section>
+
+<section class="chapter" id="importadas">
+  <h2 class="ch"><span class="n">14</span> Escalas importadas (foto, PDF ou planilha)</h2>
+  <p class="lead">Para escalas feitas fora do sistema — por exemplo a <b>escala de eleição</b> — basta enviar a foto, o PDF ou a planilha. A equipe passa a ver a escala no app, com os próprios serviços em destaque. Estas escalas não alteram as escalas de fim de semana nem as regras do gerador.</p>
+  <h3>14.1 Criar e enviar o arquivo</h3>
+  <ol class="steps">
+    <li>No menu, abrir <b>Escalas importadas</b> e tocar em <b>Nova escala importada</b>.</li>
+    <li>Informar o <b>título</b> (ex.: ESCALA DE ELEIÇÃO) e a <b>data</b>.</li>
+    <li>Em <b>Arquivo original</b>, tocar em <b>Enviar foto, PDF ou planilha</b> (no celular dá para tirar a foto na hora). Fotos grandes são reduzidas automaticamente.</li>
+  </ol>
+  <figure><img src="img/41-importar-editor.jpg" alt="Escala importada" /><figcaption>Dados da escala, arquivo original e botões Salvar / Publicar.</figcaption></figure>
+  <h3>14.2 Preencher as linhas</h3>
+  <ul>
+    <li><b>Ler tabela</b> (ao lado da foto/PDF): o sistema lê a tabela automaticamente e preenche as linhas. Disponível quando a leitura automática está ligada no servidor (chave <code>ANTHROPIC_API_KEY</code>). Sempre confira o resultado com a foto.</li>
+    <li><b>Colar do Excel</b>: selecione a tabela no Excel ou Google Planilhas (com ou sem o cabeçalho SEQ, CARRO, HORA, LINHA, REND., MOTORISTA, COBRADOR), copie e cole. Também dá para colar direto em qualquer célula da tabela. Arquivos CSV enviados são lidos sozinhos.</li>
+    <li>Edite direto na tabela, como numa planilha. <b>+ Linha</b> acrescenta, a lixeira remove.</li>
+    <li>Ao <b>Salvar</b>, cada nome é procurado no cadastro de Pessoas (aceita acentos e pequenas diferenças de grafia). <span style="color:#16a34a">●</span> verde = ligado ao cadastro (aparece em “Meus serviços” do funcionário); <span style="color:#f59e0b">●</span> laranja = nome não encontrado. Para ligar, escolha o nome na lista que aparece ao digitar, ou cadastre a pessoa em Pessoas e salve de novo.</li>
+  </ul>
+  <figure><img src="img/42-importar-tabela.jpg" alt="Tabela da escala importada" /><figcaption>Tabela editável com o indicador de vínculo de cada nome.</figcaption></figure>
+  <h3>14.3 Publicar para a equipe</h3>
+  <ul>
+    <li>Tocar em <b>Publicar para a equipe</b>. A escala aparece no app da equipe, no histórico da barra lateral, junto com a foto original (que pode ser ampliada).</li>
+    <li><b>Retirar do app</b> volta a escala para rascunho. <b>Excluir</b> (somente administrador) apaga a escala e os arquivos.</li>
+  </ul>
+  <figure class="phone"><img src="img/43-equipe-importada.jpg" alt="Escala importada no app" /><figcaption>No app da equipe: Meus serviços, foto original e tabela.</figcaption></figure>
+  <figure class="phone"><img src="img/44-equipe-historico-importada.jpg" alt="Histórico" /><figcaption>Escalas importadas no histórico da barra lateral.</figcaption></figure>
 </section>
 
 <footer>EscalaBus — Manual do Usuário</footer>

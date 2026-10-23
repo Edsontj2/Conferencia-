@@ -3,6 +3,7 @@ import request from 'supertest';
 import { createApp, prepareDatabase } from '../server/app';
 import { openDatabase, type Database } from '../server/db';
 import type { Entry } from '../shared/types';
+import { parseTable } from '../shared/extras';
 
 let db: Database;
 let agent: ReturnType<typeof request.agent>;
@@ -367,6 +368,44 @@ describe('app dos funcionários', () => {
     const pick = r1.choose.find((c: { name: string }) => c.name === 'PAULO OLIVEIRA');
     const r2 = (await request(app).post('/api/func/register').set(H).send({ phone: '61966665555', name: 'Paulo Henrique Oliveira', password: '123456', personId: pick.id }).expect(201)).body;
     expect(r2.person.name).toBe('PAULO OLIVEIRA');
+    await d.close();
+  }, 30000);
+});
+
+describe('escalas importadas (foto/PDF/planilha)', () => {
+  it('admin cria, cola a tabela, liga nomes ao cadastro e publica; funcionário vê com o arquivo original', async () => {
+    const d = await openDatabase();
+    const opts = { db: d, secureCookies: false, seedRealData: true, initialAdmin: { username: 'admin', password: 'senha-segura-123' } };
+    await prepareDatabase(opts);
+    const app = createApp(opts);
+    const adm = request.agent(app);
+    await adm.post('/api/auth/login').set(H).send({ username: 'admin', password: 'senha-segura-123' }).expect(200);
+    const s = (await adm.post('/api/extras').set(H).send({ title: 'ESCALA DE ELEIÇÃO', date: '2026-10-25' }).expect(201)).body;
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+    const withFile = (await adm.post(`/api/extras/${s.id}/files`).set(H).send({ name: 'escala.png', mime: 'image/png', data: png.toString('base64') }).expect(201)).body;
+    expect(withFile.files).toHaveLength(1);
+    await adm.post(`/api/extras/${s.id}/files`).set(H).send({ name: 'x.exe', mime: 'application/x-msdownload', data: 'AAAA' }).expect(400);
+    const rows = parseTable('SEQ\tCARRO\tHORA\tLINHA\tREND\tJORNADA\tMOTORISTA\tCOBRADOR\n8\t541729\t5:00\t783.2\t11:45\t\tHENRIQUE GRECCO\tFULANO INEXISTENTE\n');
+    expect(rows[0]).toMatchObject({ seq: '8', bus: '541729', start: '05:00', line: '783.2', end: '11:45', driverName: 'HENRIQUE GRECCO', conductorName: 'FULANO INEXISTENTE' });
+    const saved = (await adm.put(`/api/extras/${s.id}`).set(H).send({ title: 'ESCALA DE ELEIÇÃO', date: '2026-10-25', notes: null, rows }).expect(200)).body;
+    expect(saved.rows[0].driverId).not.toBeNull(); // "HENRRIQUE GRECCO" no cadastro
+    expect(saved.rows[0].conductorId).toBeNull();
+    // funcionário: rascunho não aparece
+    const f = request.agent(app);
+    await f.post('/api/func/register').set(H).send({ phone: '61988881111', name: 'Henrique Grecco', password: 'minha-senha' }).expect(201);
+    expect((await f.get('/api/func/schedules')).body.some((x: { kind: string }) => x.kind === 'avulsa')).toBe(false);
+    await f.get(`/api/func/extras/${s.id}`).expect(404);
+    await f.get(`/api/func/files/${withFile.files[0].id}`).expect(404);
+    await adm.post(`/api/extras/${s.id}/status`).set(H).send({ status: 'publicada' }).expect(200);
+    const list = (await f.get('/api/func/schedules').expect(200)).body;
+    expect(list[0]).toMatchObject({ kind: 'avulsa', title: 'ESCALA DE ELEIÇÃO', date: '2026-10-25', mine: 1 });
+    const det = (await f.get(`/api/func/extras/${s.id}`).expect(200)).body;
+    expect(det.rows).toHaveLength(1);
+    const img = await f.get(`/api/func/files/${withFile.files[0].id}`).expect(200);
+    expect(img.headers['content-type']).toBe('image/png');
+    expect(Buffer.compare(img.body as Buffer, png)).toBe(0);
+    // sem chave de IA, a leitura automática avisa
+    if (!process.env.ANTHROPIC_API_KEY) await adm.post(`/api/extras/files/${withFile.files[0].id}/read`).set(H).expect(400);
     await d.close();
   }, 30000);
 });
