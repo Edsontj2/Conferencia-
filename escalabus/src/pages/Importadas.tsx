@@ -186,7 +186,7 @@ function Editor({ id }: { id: number }) {
       toast('Arquivo enviado.');
     });
   };
-  const readAi = (fid: number) => run('Lendo a tabela… (pode levar até 1 minuto)', async () => {
+  const readAi = (fid: number) => run('Lendo a tabela… (até 1 minuto)', async () => {
     const r = await send<{ title: string; date: string; rows: ExtraRow[] }>('POST', `/api/extras/files/${fid}/read`);
     if (r.title && (!title.trim() || title.trim() === 'ESCALA')) setTitle(r.title);
     if (r.date && r.date !== date && confirm(`A data escrita na escala é ${fmtDate(r.date)}. Usar essa data?`)) setDate(r.date);
