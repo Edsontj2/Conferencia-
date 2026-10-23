@@ -16,7 +16,16 @@ import { ServicosPage } from './pages/Servicos';
 import { ConfiguracoesPage } from './pages/Configuracoes';
 import './styles.css';
 
-registerSW({ immediate: true });
+// Procura versão nova ao abrir, ao voltar para o app e a cada 30 min; com autoUpdate a página recarrega sozinha.
+registerSW({
+  immediate: true,
+  onRegisteredSW(_url, reg) {
+    if (!reg) return;
+    const check = () => { if (navigator.onLine) void reg.update().catch(() => {}); };
+    setInterval(check, 30 * 60_000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+  },
+});
 
 function App() {
   const { me, authChecked } = useApp();

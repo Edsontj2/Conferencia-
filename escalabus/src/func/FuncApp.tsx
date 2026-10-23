@@ -225,8 +225,8 @@ function Viewer({ me, online, onLogout }: { me: Me; online: boolean; onLogout: (
 
       <div className="main">
         <header className="mobile-bar">
-          <Logo size={32} />
           <button className="mobile-menu" onClick={() => setMenu(true)} aria-label="Abrir menu"><Icon.menu /></button>
+          <Logo size={32} />
         </header>
         {!online && <div className="notice notice-err"><Icon.wifiOff /> Sem internet — mostrando a última escala salva{savedAt && fromCache ? ` (${new Date(savedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })})` : ''}.</div>}
         <main className="content fa-content">

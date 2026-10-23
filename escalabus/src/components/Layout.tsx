@@ -59,12 +59,12 @@ export function Layout() {
 
       <div className="main">
         <header className="mobile-bar no-print">
-          <Logo size={32} />
           <button className="mobile-menu" onClick={() => setOpen(true)} aria-label="Abrir menu"><Icon.menu /></button>
+          <Logo size={32} />
         </header>
         {me?.mustChange && (
           <div className="notice notice-warn no-print" role="alert">
-            <Icon.alert /> Você está usando a senha padrão.&nbsp;<NavLink to="/configuracoes">Troque agora em Configurações → Minha senha</NavLink>.
+            <Icon.alert /> <span>Você está usando a senha padrão. <NavLink to="/configuracoes">Troque agora em Configurações → Minha senha</NavLink>.</span>
           </div>
         )}
         {me?.mode === 'demo' && (
