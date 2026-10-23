@@ -431,3 +431,30 @@ details.alert summary::marker { color: currentColor; }
 .danger-zone h2 { color: var(--err); }
 
 .func-link { background: #f1f5f9; border: 1px solid var(--line); border-radius: 8px; padding: .45rem .7rem; font-size: .88rem; align-self: center; }
+
+/* ---------- Escalas importadas ---------- */
+.clickable { cursor: pointer; }
+.clickable:hover td { background: #f8fafc; }
+.panel-title { font-size: 1rem; margin: 0 0 .8rem; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; width: 100%; }
+.imp-status { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin: -.4rem 0 1rem; }
+.imp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; margin-bottom: 1.1rem; }
+.imp-drop { width: 100%; display: flex; flex-direction: column; align-items: center; gap: .25rem; padding: 1.2rem; border: 2px dashed #c7d2fe; border-radius: 14px; background: #f8faff; color: var(--primary); cursor: pointer; font: inherit; }
+.imp-drop span { color: var(--muted); font-size: .84rem; }
+.imp-drop:hover:not(:disabled) { background: #eef2ff; }
+.imp-file { display: flex; align-items: center; gap: .7rem; margin-top: .7rem; padding: .5rem; border: 1px solid var(--line); border-radius: 12px; }
+.imp-file img, .imp-file-icon { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; background: #f1f5f9; display: grid; place-items: center; color: var(--muted); flex: none; }
+.imp-file-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.imp-file-text a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.imp-sheet-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; padding: 1rem 0 .7rem; }
+.imp-sheet-head h2 { margin: 0; font-size: 1.05rem; }
+.imp-sheet-head p { margin: .2rem 0 0; }
+.imp-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+.imp-table .cell-input { border-color: #e2e8f0; background: #fff; }
+.imp-name { position: relative; }
+.imp-name .cell-input { padding-left: 1.3rem; }
+.imp-name .imp-dot { position: absolute; left: .9rem; top: 50%; transform: translateY(-50%); }
+.imp-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: transparent; vertical-align: middle; }
+.imp-dot.ok { background: #16a34a; }
+.imp-dot.no { background: #f59e0b; }
+@media (max-width: 900px) { .imp-grid { grid-template-columns: 1fr; } }

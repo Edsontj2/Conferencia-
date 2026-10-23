@@ -84,7 +84,8 @@ Todos os dispositivos que acessam o **mesmo servidor** veem os mesmos dados.
 3. **Environment Variables:**
    * `DATABASE_URL` = string do *Transaction pooler* do Supabase;
    * `ADMIN_USERNAME` = `admin` (ou outro);
-   * `ADMIN_PASSWORD` = senha do primeiro acesso (mín. 8 caracteres; só é usada se ainda não houver administrador — depois troque em Configurações).
+   * `ADMIN_PASSWORD` = senha do primeiro acesso (mín. 8 caracteres; só é usada se ainda não houver administrador — depois troque em Configurações);
+   * `ANTHROPIC_API_KEY` (opcional) = chave da API da Anthropic (Claude) para o botão **Ler tabela** das *Escalas importadas* (lê fotos e PDFs de escalas). Sem ela, a escala importada é preenchida colando do Excel ou digitando.
 4. **Deploy.** O endereço `https://<projeto>.vercel.app` já tem HTTPS: dá para instalar como app no celular e usar offline.
 
 Atualizações: cada `git push` no branch configurado gera um novo deploy automaticamente. Backup: exportação JSON em Configurações e os backups automáticos do Supabase.
@@ -144,6 +145,10 @@ Com **nginx**, use `proxy_pass http://127.0.0.1:3000;` e `proxy_set_header X-For
 **Backup:** exportação JSON em Configurações; no banco local, copie a pasta `DATA_DIR` com o serviço parado. Antes de cada importação o app guarda uma cópia dos dados anteriores na tabela `backup_snapshots`.
 
 ---
+
+### Escalas importadas (foto, PDF ou planilha)
+
+Menu **Escalas importadas**: para escalas feitas fora do sistema (ex.: escala de eleição). Envie a foto/PDF/CSV, preencha as linhas (leitura automática, colar do Excel ou digitar), salve — os nomes são ligados ao cadastro de Pessoas — e **publique**. A escala aparece no app da equipe (`/func/`) com o arquivo original e os serviços de cada funcionário em destaque. Não altera as escalas de fim de semana nem as regras do gerador. Arquivos de até 3 MB (fotos são reduzidas no navegador antes do envio).
 
 ## 6. Testes
 

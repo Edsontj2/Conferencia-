@@ -9,6 +9,7 @@ import * as repo from './repo.js';
 import { findNameMatches, normalizeBrPhone, pickPerson } from '../shared/names.js';
 import { phoneProblem } from '../shared/whatsapp.js';
 import { sundayOf } from '../shared/time.js';
+import { publishedExtra, publishedExtras, sendPublishedFile } from './extras.js';
 
 /**
  * App dos funcionários (somente visualização). Contas e sessões ficam no schema real.
@@ -136,14 +137,27 @@ export function registerEmployeeRoutes(app: Express, db: Database, secure: (req:
     res.json({ ok: true });
   });
 
-  /** Fins de semana com escala confirmada (mais recentes primeiro), indicando se a pessoa trabalha. */
+  /** Escalas confirmadas dos fins de semana + escalas avulsas publicadas (mais recentes primeiro), indicando se a pessoa trabalha. */
   app.get('/api/func/schedules', auth, async (req, res) => {
     const pid = acc(req).person_id;
     const rows = await real((q) => q<{ id: number; saturday: string; mine: number }>(
       `SELECT s.id, s.saturday,
         (SELECT COUNT(*) FROM schedule_entries e WHERE e.schedule_id = s.id AND (e.driver_id = ? OR e.conductor_id = ?)) AS mine
        FROM schedules s WHERE s.status = 'confirmada' ORDER BY s.saturday DESC LIMIT 60`, [pid ?? -1, pid ?? -1]));
-    res.json(rows.map((r) => ({ id: Number(r.id), saturday: r.saturday, sunday: sundayOf(r.saturday), mine: Number(r.mine) })));
+    const extras = await real((q) => publishedExtras(q, pid));
+    const items = [
+      ...rows.map((r) => ({ kind: 'fds' as const, id: Number(r.id), date: r.saturday, saturday: r.saturday, sunday: sundayOf(r.saturday), mine: Number(r.mine) })),
+      ...extras.map((x) => ({ kind: 'avulsa' as const, ...x })),
+    ].sort((a, b) => b.date.localeCompare(a.date));
+    res.json(items);
+  });
+
+  /** Escala avulsa/importada publicada (ex.: escala de eleição), com os arquivos originais. */
+  app.get('/api/func/extras/:id', auth, async (req, res) => {
+    res.json(await real((q) => publishedExtra(q, Number(req.params.id))));
+  });
+  app.get('/api/func/files/:fid', auth, async (req, res) => {
+    await real((q) => sendPublishedFile(res, q, Number(req.params.fid)));
   });
 
   app.get('/api/func/schedules/:id', auth, async (req, res) => {

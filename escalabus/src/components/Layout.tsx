@@ -10,6 +10,7 @@ interface NavItem { to: string; label: string; icon: () => ReactNode; end?: bool
 const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: Icon.home, end: true },
   { to: '/escala', label: 'Escalas', icon: Icon.calendar },
+  { to: '/importadas', label: 'Escalas importadas', icon: Icon.upload },
   { to: '/pessoas', label: 'Pessoas', icon: Icon.people },
   { to: '/linhas', label: 'Linhas', icon: Icon.route },
   { to: '/onibus', label: 'Ônibus', icon: Icon.bus },

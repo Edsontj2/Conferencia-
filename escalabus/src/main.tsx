@@ -6,6 +6,7 @@ import { AppProvider, useApp } from './state';
 import { Layout } from './components/Layout';
 import { LoginPage } from './pages/Login';
 import { EscalaPage } from './pages/Escala';
+import { ImportadasPage } from './pages/Importadas';
 import { InicioPage } from './pages/Inicio';
 import { RelatorioPage } from './pages/Relatorio';
 import { HistoricoPage } from './pages/Historico';
@@ -26,6 +27,8 @@ function App() {
       <Route element={<Layout />}>
         <Route index element={<InicioPage />} />
         <Route path="escala" element={<EscalaPage />} />
+        <Route path="importadas" element={<ImportadasPage />} />
+        <Route path="importadas/:id" element={<ImportadasPage />} />
         <Route path="relatorio" element={<RelatorioPage />} />
         <Route path="historico" element={<HistoricoPage />} />
         <Route path="pessoas" element={<PessoasPage />} />
