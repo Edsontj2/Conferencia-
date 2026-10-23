@@ -1,6 +1,6 @@
 // Service worker do app dos funcionários (escopo /func/): casca do app em cache para abrir sem internet.
 // Os dados da escala ficam numa cópia local feita pelo próprio app (somente leitura).
-const CACHE = 'eb-func-v1';
+const CACHE = 'eb-func-v2';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/func/', '/logo.svg']))); });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('eb-func-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
