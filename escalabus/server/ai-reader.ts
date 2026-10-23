@@ -36,7 +36,8 @@ Horários no formato HH:MM.`;
 export async function readScheduleFile(mime: string, base64: string): Promise<{ title: string; date: string; rows: ExtraRow[] }> {
   if (!aiEnabled()) throw new HttpError(400, 'Leitura automática não configurada (falta a chave ANTHROPIC_API_KEY no servidor). Digite ou cole a tabela.');
   if (!aiReadable(mime)) throw new HttpError(400, 'A leitura automática aceita fotos (JPG, PNG, WEBP) e PDF.');
-  const client = new Anthropic({ timeout: 240_000, maxRetries: 1 });
+  // a função da Vercel (plano gratuito) tem no máximo 60 s
+  const client = new Anthropic({ timeout: 55_000, maxRetries: 0 });
   const file: Anthropic.Beta.BetaContentBlockParam = mime === 'application/pdf'
     ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
     : { type: 'image', source: { type: 'base64', media_type: mime as (typeof IMAGE_TYPES)[number], data: base64 } };
@@ -47,10 +48,11 @@ export async function readScheduleFile(mime: string, base64: string): Promise<{ 
       max_tokens: 16000,
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
-      output_config: { effort: 'medium', format: betaZodOutputFormat(Result) },
+      output_config: { effort: 'low', format: betaZodOutputFormat(Result) },
       messages: [{ role: 'user', content: [file, { type: 'text', text: PROMPT }] }],
     });
   } catch (e) {
+    if (e instanceof Anthropic.APIConnectionTimeoutError) throw new HttpError(504, 'A leitura demorou demais. Tente uma foto só da tabela, mais nítida, ou cole do Excel.');
     if (e instanceof Anthropic.AuthenticationError) throw new HttpError(502, 'Chave ANTHROPIC_API_KEY inválida.');
     if (e instanceof Anthropic.RateLimitError) throw new HttpError(503, 'Leitura automática ocupada. Tente de novo em alguns minutos.');
     if (e instanceof Anthropic.APIError) throw new HttpError(502, `Falha na leitura automática (${e.status ?? 'rede'}).`);
