@@ -6,6 +6,10 @@ import { HttpError } from './schedules.js';
 import * as repo from './repo.js';
 import { matchPerson, type ExtraFileMeta, type ExtraRow, type ExtraSchedule } from '../shared/extras.js';
 import { aiEnabled, aiReadable, readScheduleFile } from './ai-reader.js';
+import { shiftWindow } from './seed.js';
+import { findNameMatches, nameTokens } from '../shared/names.js';
+import { parseHM, isValidHM, serviceMinutes } from '../shared/time.js';
+import type { Person, Role } from '../shared/types.js';
 
 /** Tamanho máximo de cada arquivo (o limite do corpo da requisição na Vercel é 4,5 MB). */
 export const MAX_FILE_BYTES = 3 * 1024 * 1024;
@@ -83,25 +87,45 @@ export function registerExtraAdminRoutes(app: Express, db: Database, modeOf: (re
   /** Salva cabeçalho e linhas. Nomes sem vínculo (id nulo) são procurados no cadastro de pessoas. */
   app.put('/api/extras/:id', async (req, res) => {
     const id = Number(req.params.id);
-    const b = parse(headIn.extend({ rows: z.array(rowIn).max(600) }), req.body);
+    const b = parse(headIn.extend({ rows: z.array(rowIn).max(600), createMissing: z.boolean().optional() }), req.body);
+    const created: { id: number; name: string; role: Role; shiftName: string }[] = [];
     const out = await data(req, async (q) => {
       await must(q, id);
       const people = await repo.listPeople(q);
       const known = new Set(people.map((p) => p.id));
+      /** Liga ao cadastro; se não existir e createMissing, cadastra a pessoa (função da coluna, turno pelo horário). */
+      const resolve = async (name: string, given: number | null, role: Role, start: string): Promise<number | null> => {
+        const n = name.trim().replace(/\s+/g, ' ').toUpperCase();
+        if (!n) return null;
+        if (given != null && known.has(given)) return given;
+        const hit = matchPerson(n, people, role);
+        if (hit != null) return hit;
+        // só cadastra nome com 2+ palavras e sem nenhum parecido no cadastro (parecido = o admin decide)
+        if (!b.createMissing || nameTokens(n).length < 2 || findNameMatches(n, people, (x) => x.name).length) return null;
+        const shiftName = isValidHM(start) && parseHM(start) >= 10 * 60 ? 'Tarde' : 'Manhã';
+        const w = shiftWindow(new Set([shiftName]));
+        const now = nowIso();
+        const [{ id: pid }] = await q<{ id: number }>(`INSERT INTO people (name, role, shift_name, avail_start, avail_end, whatsapp, active, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, NULL, 1, ?, ?) RETURNING id`, [n, role, shiftName, w.start, w.end, now, now]);
+        const p: Person = { id: Number(pid), name: n, role, shiftName, availStart: w.start, availEnd: w.end, whatsapp: null, active: true };
+        people.push(p); known.add(p.id);
+        created.push({ id: p.id, name: n, role, shiftName });
+        return p.id;
+      };
       await q('UPDATE extra_schedules SET title = ?, date = ?, notes = ?, updated_at = ? WHERE id = ?', [b.title, b.date, b.notes ?? null, nowIso(), id]);
       await q('DELETE FROM extra_rows WHERE schedule_id = ?', [id]);
       let pos = 0;
       for (const r of b.rows) {
         if (!r.driverName.trim() && !r.conductorName.trim() && !r.bus.trim() && !r.start.trim()) continue;
-        const driverId = r.driverName.trim() ? (r.driverId != null && known.has(r.driverId) ? r.driverId : matchPerson(r.driverName, people, 'motorista')) : null;
-        const conductorId = r.conductorName.trim() ? (r.conductorId != null && known.has(r.conductorId) ? r.conductorId : matchPerson(r.conductorName, people, 'cobrador')) : null;
+        const driverId = await resolve(r.driverName, r.driverId, 'motorista', r.start.trim());
+        const conductorId = await resolve(r.conductorName, r.conductorId, 'cobrador', r.start.trim());
         await q(`INSERT INTO extra_rows (schedule_id, position, seq, bus, start_time, line, end_time, driver_name, driver_id, conductor_name, conductor_id)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [id, pos++, r.seq.trim(), r.bus.trim(), r.start.trim(), r.line.trim(), r.end.trim(), r.driverName.trim(), driverId, r.conductorName.trim(), conductorId]);
       }
       return loadExtra(q, id);
     });
-    res.json(out);
+    res.json({ ...out, created });
   });
 
   app.post('/api/extras/:id/status', async (req, res) => {
@@ -162,7 +186,13 @@ export async function publishedExtras(q: Q, personId: number | null) {
   const rows = await q<R>(`SELECT s.id, s.title, s.date,
     (SELECT COUNT(*) FROM extra_rows r WHERE r.schedule_id = s.id AND (r.driver_id = ? OR r.conductor_id = ?)) AS mine
     FROM extra_schedules s WHERE s.status = 'publicada' ORDER BY s.date DESC LIMIT 60`, [personId ?? -1, personId ?? -1]);
-  return rows.map((r) => ({ id: Number(r.id), title: String(r.title), date: String(r.date), mine: Number(r.mine) }));
+  const mins = new Map<number, number>();
+  if (personId != null) {
+    const rs = await q<R>(`SELECT r.schedule_id, r.start_time, r.end_time FROM extra_rows r JOIN extra_schedules s ON s.id = r.schedule_id
+      WHERE s.status = 'publicada' AND (r.driver_id = ? OR r.conductor_id = ?)`, [personId, personId]);
+    for (const r of rs) mins.set(Number(r.schedule_id), (mins.get(Number(r.schedule_id)) ?? 0) + serviceMinutes(String(r.start_time), String(r.end_time)));
+  }
+  return rows.map((r) => ({ id: Number(r.id), title: String(r.title), date: String(r.date), mine: Number(r.mine), minutes: mins.get(Number(r.id)) ?? 0 }));
 }
 
 export async function publishedExtra(q: Q, id: number) {

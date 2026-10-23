@@ -65,3 +65,15 @@ describe('pooler do Supabase', () => {
     expect(poolerCandidates('postgres://u:p@localhost:5432/x')).toEqual(['postgres://u:p@localhost:5432/x']);
   });
 });
+
+describe('horas estimadas', () => {
+  it('calcula a duração do serviço, inclusive passando da meia-noite', async () => {
+    const { serviceMinutes, fmtHours } = await import('../shared/time');
+    expect(serviceMinutes('05:00', '11:45')).toBe(405);
+    expect(serviceMinutes('18:30', '00:10')).toBe(340);
+    expect(serviceMinutes('', '11:00')).toBe(0);
+    expect(fmtHours(405)).toBe('6h45');
+    expect(fmtHours(420)).toBe('7h');
+    expect(fmtHours(65)).toBe('1h05');
+  });
+});

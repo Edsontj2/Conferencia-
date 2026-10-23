@@ -460,3 +460,5 @@ details.alert summary::marker { color: currentColor; }
 .imp-dot.ok { background: #16a34a; }
 .imp-dot.no { background: #f59e0b; }
 @media (max-width: 900px) { .imp-grid { grid-template-columns: 1fr; } }
+.imp-auto { align-items: flex-start; margin: 0 0 .8rem; font-size: .85rem; color: var(--muted); }
+.imp-auto input { margin-top: .1rem; flex: none; }

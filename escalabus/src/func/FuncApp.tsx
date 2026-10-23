@@ -7,12 +7,12 @@ import { InstallButton } from '../components/InstallButton';
 import type { Entry } from '../../shared/types';
 import type { ExtraSchedule } from '../../shared/extras';
 import { buildReportDay } from '../../shared/report';
-import { crossesMidnight, dayLabel, fmtDate, todayLocal, weekdayOf, addDays } from '../../shared/time';
+import { crossesMidnight, dayLabel, fmtDate, fmtHours, serviceMinutes, todayLocal, weekdayOf, addDays } from '../../shared/time';
 import { formatPhone } from '../../shared/whatsapp';
 
 interface Me { phone: string; fullName: string; person: { id: number; name: string; role: string; shiftName: string } | null; companyName: string }
-type ListItem = { kind: 'fds'; id: number; date: string; saturday: string; sunday: string; mine: number }
-  | { kind: 'avulsa'; id: number; date: string; title: string; mine: number };
+type ListItem = { kind: 'fds'; id: number; date: string; saturday: string; sunday: string; mine: number; minutes?: number }
+  | { kind: 'avulsa'; id: number; date: string; title: string; mine: number; minutes?: number };
 const keyOf = (w: ListItem) => `${w.kind}:${w.id}`;
 interface Detail { id: number; saturday: string; sunday: string; entries: Entry[]; updatedAt: string }
 
@@ -193,6 +193,7 @@ function Viewer({ me, online, onLogout }: { me: Me; online: boolean; onLogout: (
           <button className="sb-close" onClick={() => setMenu(false)} aria-label="Fechar menu"><Icon.close /></button>
         </div>
         <div className="fa-team">Equipe</div>
+        {list && me.person && <MonthHours list={list} />}
         <nav className="sb-nav">
           <div className="sb-group-title">Histórico de escalas</div>
           {!list ? <p className="fa-muted-dark">Carregando…</p> : list.length === 0 ? <p className="fa-muted-dark">Nenhuma escala publicada ainda.</p> : list.map((w) => (
@@ -202,7 +203,7 @@ function Viewer({ me, online, onLogout }: { me: Me; online: boolean; onLogout: (
                 {w.kind === 'fds'
                   ? <span>{fmtDate(w.saturday).slice(0, 5)} e {fmtDate(w.sunday).slice(0, 5)}</span>
                   : <span>{fmtDate(w.date).slice(0, 5)} · {w.title}</span>}
-                <small>{w.kind === 'fds' ? 'Fim de semana' : dayLabel(w.date)} · {w.date.slice(0, 4)}{w.mine ? ' · você trabalha' : ''}</small>
+                <small>{w.kind === 'fds' ? 'Fim de semana' : dayLabel(w.date)} · {w.date.slice(0, 4)}{w.mine ? ` · você trabalha${w.minutes ? ` · ${fmtHours(w.minutes)}` : ''}` : ''}</small>
               </span>
               {w.mine > 0 && <span className="fa-dot" />}
             </button>
@@ -243,7 +244,7 @@ function Viewer({ me, online, onLogout }: { me: Me; online: boolean; onLogout: (
           {detail && (
             <>
               <section className="fa-mine">
-                <h2>Meus serviços</h2>
+                <h2>Meus serviços{mine.length > 0 && <span className="fa-total">Total estimado: <b>{fmtHours(mine.reduce((t, e) => t + serviceMinutes(e.startTime, e.endTime), 0))}</b></span>}</h2>
                 {!me.person ? (
                   <p className="muted">Seu cadastro ainda não foi vinculado ao seu nome na equipe. Veja a escala completa abaixo; a administração vai fazer o vínculo.</p>
                 ) : mine.length === 0 ? (
@@ -260,6 +261,7 @@ function Viewer({ me, online, onLogout }: { me: Me; online: boolean; onLogout: (
                             <span>Linha <strong>{e.lineCode}</strong></span>
                             <span>Carro <strong>{e.busFleet || 'a definir'}</strong></span>
                             <span>Turno <strong>{e.shiftName}</strong></span>
+                            <span>Horas <strong>{fmtHours(serviceMinutes(e.startTime, e.endTime))}</strong></span>
                           </div>
                           <div className="fa-mine-partner">
                             <span className={`role-badge ${isDriver ? 'motorista' : 'cobrador'}`}>{isDriver ? 'Você: motorista' : 'Você: cobrador(a)'}</span>
@@ -287,13 +289,14 @@ function Viewer({ me, online, onLogout }: { me: Me; online: boolean; onLogout: (
                       <h3>Turno: {s.shiftName}</h3>
                       <div className="table-wrap fa-table">
                         <table className="table">
-                          <thead><tr><th>Seq</th><th>Hora</th><th>Rend.</th><th>Linha</th><th>Carro</th><th>Motorista</th><th>Cobrador</th></tr></thead>
+                          <thead><tr><th>Seq</th><th>Hora</th><th>Rend.</th><th>Horas</th><th>Linha</th><th>Carro</th><th>Motorista</th><th>Cobrador</th></tr></thead>
                           <tbody>{rows.map(({ seq, entry: e }) => {
                             const isMine = pid != null && (e.driverId === pid || e.conductorId === pid);
                             return (
                               <tr key={e.id} className={isMine ? 'fa-row-mine' : ''}>
                                 <td className="muted">{seq}</td><td className="strong">{e.startTime}</td>
                                 <td>{e.endTime}{crossesMidnight(e.startTime, e.endTime) ? '*' : ''}</td>
+                                <td className="muted">{fmtHours(serviceMinutes(e.startTime, e.endTime))}</td>
                                 <td>{e.lineCode}</td><td>{e.busFleet || '—'}</td>
                                 <td className={e.driverId === pid ? 'strong' : ''}>{e.driverName}</td>
                                 <td className={e.conductorId === pid ? 'strong' : ''}>{e.conductorName}</td>
@@ -307,7 +310,7 @@ function Viewer({ me, online, onLogout }: { me: Me; online: boolean; onLogout: (
                           const isMine = pid != null && (e.driverId === pid || e.conductorId === pid);
                           return (
                             <div key={e.id} className={`fa-card-row ${isMine ? 'fa-row-mine' : ''}`}>
-                              <div className="fa-card-top"><strong>{e.startTime} – {e.endTime}</strong><span>Linha {e.lineCode} · Carro {e.busFleet || '—'}</span></div>
+                              <div className="fa-card-top"><strong>{e.startTime} – {e.endTime} <small className="fa-dur">{fmtHours(serviceMinutes(e.startTime, e.endTime))}</small></strong><span>Linha {e.lineCode} · Carro {e.busFleet || '—'}</span></div>
                               <div><span className="chip-cell chip-blue fa-chip">{e.driverName}</span></div>
                               <div><span className="chip-cell chip-amber fa-chip">{e.conductorName}</span></div>
                             </div>
@@ -363,7 +366,7 @@ function ExtraView({ s, pid, linked }: { s: ExtraSchedule; pid: number | null; l
     <>
       {s.notes && <div className="alert alert-info">{s.notes}</div>}
       <section className="fa-mine">
-        <h2>Meus serviços</h2>
+        <h2>Meus serviços{mine.length > 0 && <span className="fa-total">Total estimado: <b>{fmtHours(mine.reduce((t, r) => t + serviceMinutes(r.start, r.end), 0))}</b></span>}</h2>
         {!linked ? (
           <p className="muted">Seu cadastro ainda não foi vinculado ao seu nome na equipe. Veja a escala completa abaixo; a administração vai fazer o vínculo.</p>
         ) : mine.length === 0 ? (
@@ -380,6 +383,7 @@ function ExtraView({ s, pid, linked }: { s: ExtraSchedule; pid: number | null; l
                     <span>Linha <strong>{r.line || '—'}</strong></span>
                     <span>Carro <strong>{r.bus || 'a definir'}</strong></span>
                     {r.seq && <span>Seq <strong>{r.seq}</strong></span>}
+                    {serviceMinutes(r.start, r.end) > 0 && <span>Horas <strong>{fmtHours(serviceMinutes(r.start, r.end))}</strong></span>}
                   </div>
                   <div className="fa-mine-partner">
                     <span className={`role-badge ${isDriver ? 'motorista' : 'cobrador'}`}>{isDriver ? 'Você: motorista' : 'Você: cobrador(a)'}</span>
@@ -410,10 +414,10 @@ function ExtraView({ s, pid, linked }: { s: ExtraSchedule; pid: number | null; l
           <label className="search fa-search" style={{ marginTop: '1rem' }}><Icon.search /><input type="search" placeholder="Procurar nome, linha ou carro…" value={q} onChange={(e) => setQ(e.target.value)} /></label>
           <div className="table-wrap fa-table">
             <table className="table">
-              <thead><tr><th>Seq</th><th>Carro</th><th>Hora</th><th>Linha</th><th>Rend.</th><th>Motorista</th><th>Cobrador</th></tr></thead>
+              <thead><tr><th>Seq</th><th>Carro</th><th>Hora</th><th>Linha</th><th>Rend.</th><th>Horas</th><th>Motorista</th><th>Cobrador</th></tr></thead>
               <tbody>{rows.map((r, i) => (
                 <tr key={i} className={isMine(r) ? 'fa-row-mine' : ''}>
-                  <td className="muted">{r.seq}</td><td>{r.bus}</td><td className="strong">{r.start}</td><td>{r.line}</td><td>{r.end}</td>
+                  <td className="muted">{r.seq}</td><td>{r.bus}</td><td className="strong">{r.start}</td><td>{r.line}</td><td>{r.end}</td><td className="muted">{serviceMinutes(r.start, r.end) ? fmtHours(serviceMinutes(r.start, r.end)) : ''}</td>
                   <td className={r.driverId != null && r.driverId === pid ? 'strong' : ''}>{r.driverName}</td>
                   <td className={r.conductorId != null && r.conductorId === pid ? 'strong' : ''}>{r.conductorName}</td>
                 </tr>
@@ -423,7 +427,7 @@ function ExtraView({ s, pid, linked }: { s: ExtraSchedule; pid: number | null; l
           <div className="fa-cards">
             {rows.map((r, i) => (
               <div key={i} className={`fa-card-row ${isMine(r) ? 'fa-row-mine' : ''}`}>
-                <div className="fa-card-top"><strong>{r.start}{r.end ? ` – ${r.end}` : ''}</strong><span>Linha {r.line || '—'} · Carro {r.bus || '—'}</span></div>
+                <div className="fa-card-top"><strong>{r.start}{r.end ? ` – ${r.end}` : ''} {serviceMinutes(r.start, r.end) > 0 && <small className="fa-dur">{fmtHours(serviceMinutes(r.start, r.end))}</small>}</strong><span>Linha {r.line || '—'} · Carro {r.bus || '—'}</span></div>
                 <div><span className="chip-cell chip-blue fa-chip">{r.driverName || '—'}</span></div>
                 <div><span className="chip-cell chip-amber fa-chip">{r.conductorName || '—'}</span></div>
               </div>
@@ -438,5 +442,36 @@ function ExtraView({ s, pid, linked }: { s: ExtraSchedule; pid: number | null; l
         </div>
       )}
     </>
+  );
+}
+
+const MESES_CAP = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+/** Horas estimadas do funcionário no mês atual e no anterior, somando as escalas publicadas. */
+function MonthHours({ list }: { list: ListItem[] }) {
+  const today = todayLocal();
+  const months = [today.slice(0, 7), addDays(`${today.slice(0, 7)}-01`, -1).slice(0, 7)];
+  const sum = (ym: string) => {
+    let min = 0; let n = 0;
+    for (const w of list) {
+      if (!w.mine || !w.minutes) continue;
+      // fim de semana conta no mês do sábado
+      if (w.date.slice(0, 7) === ym) { min += w.minutes; n += w.mine; }
+    }
+    return { min, n };
+  };
+  return (
+    <div className="fa-hours">
+      {months.map((ym) => {
+        const { min, n } = sum(ym);
+        return (
+          <div key={ym} className="fa-hours-row">
+            <span>{MESES_CAP[Number(ym.slice(5, 7)) - 1]}</span>
+            <strong>{fmtHours(min)}</strong>
+            <small>{n} serviço(s)</small>
+          </div>
+        );
+      })}
+      <p>Horas estimadas pelas escalas (do início até a rendição).</p>
+    </div>
   );
 }

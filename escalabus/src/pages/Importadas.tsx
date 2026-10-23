@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { get, send } from '../api';
 import { useApp } from '../state';
 import { PageHeader, IconAction } from '../components/PageHeader';
 import { Icon } from '../components/Icons';
 import { Empty, Field, Modal, fmtDateTime } from '../components/ui';
 import { emptyRow, parseTable, type ExtraRow, type ExtraSchedule } from '../../shared/extras';
-import { fmtDate, todayLocal, weekdayOf, WEEKDAY_LABEL } from '../../shared/time';
+import { fmtDate, fmtHours, serviceMinutes, todayLocal, weekdayOf, WEEKDAY_LABEL } from '../../shared/time';
 
 interface ListItem { id: number; title: string; date: string; status: 'rascunho' | 'publicada'; updatedAt: string; rows: number; files: number }
 
@@ -104,7 +104,9 @@ const COLS: { key: keyof ExtraRow; label: string; w: number }[] = [
 ];
 
 function Editor({ id }: { id: number }) {
-  const { online, toast, catalog, me } = useApp();
+  const { online, toast, catalog, me, reloadCatalog } = useApp();
+  const [autoCreate, setAutoCreate] = useState(() => { try { return localStorage.getItem('eb-imp-autocreate') !== '0'; } catch { return true; } });
+  const [created, setCreated] = useState<{ id: number; name: string; role: string; shiftName: string }[]>([]);
   const nav = useNavigate();
   const [s, setS] = useState<ExtraSchedule | null>(null);
   const [aiOn, setAiOn] = useState(false);
@@ -140,14 +142,21 @@ function Editor({ id }: { id: number }) {
     setBusy(label); setErr(null);
     try { await fn(); } catch (e) { setErr((e as Error).message); } finally { setBusy(null); }
   };
+  /** Grava; com "cadastrar nomes novos", quem não existe vira pessoa nova no cadastro. */
+  const put = async () => {
+    const x = await send<ExtraSchedule & { created: typeof created }>('PUT', `/api/extras/${id}`,
+      { title: title.trim().toUpperCase(), date, notes: notes.trim() || null, rows, createMissing: autoCreate });
+    if (x.created.length) { setCreated((c) => [...c, ...x.created]); void reloadCatalog(); }
+    return x;
+  };
   const save = () => run('Salvando…', async () => {
-    const x = await send<ExtraSchedule>('PUT', `/api/extras/${id}`, { title: title.trim().toUpperCase(), date, notes: notes.trim() || null, rows });
+    const x = await put();
     load(x);
     const missing = x.rows.filter((r) => (r.driverName && r.driverId == null) || (r.conductorName && r.conductorId == null)).length;
-    toast(missing ? `Salvo. ${missing} linha(s) com nome sem cadastro.` : 'Escala salva.');
+    toast([x.created.length ? `${x.created.length} pessoa(s) cadastrada(s).` : '', missing ? `${missing} linha(s) com nome sem cadastro.` : ''].filter(Boolean).join(' ') || 'Escala salva.');
   });
   const setStatus = (status: 'rascunho' | 'publicada') => run(status === 'publicada' ? 'Publicando…' : 'Removendo…', async () => {
-    if (dirty) await send('PUT', `/api/extras/${id}`, { title: title.trim().toUpperCase(), date, notes: notes.trim() || null, rows });
+    if (dirty) await put();
     load(await send<ExtraSchedule>('POST', `/api/extras/${id}/status`, { status }));
     toast(status === 'publicada' ? 'Publicada! A equipe já vê no app.' : 'Escala retirada do app da equipe.');
   });
@@ -224,7 +233,7 @@ function Editor({ id }: { id: number }) {
           {s.status === 'publicada'
             ? <button className="btn" disabled={!canEdit} onClick={() => void setStatus('rascunho')}>Retirar do app</button>
             : <button className="btn btn-success" disabled={!canEdit} onClick={() => void setStatus('publicada')}><Icon.check /> Publicar para a equipe</button>}
-          <button className="btn btn-primary" disabled={!canEdit || !dirty} onClick={() => void save()}>Salvar</button>
+          <button className="btn btn-primary" disabled={!canEdit || (!dirty && !(autoCreate && linked < names))} onClick={() => void save()}>Salvar</button>
         </>} />
       <div className="imp-status">
         <ExtraBadge status={s.status} />
@@ -284,13 +293,23 @@ function Editor({ id }: { id: number }) {
             {rows.length > 0 && <button className="btn btn-sm" disabled={!canEdit} onClick={() => { if (confirm('Apagar todas as linhas da tabela?')) { setRows([]); setDirty(true); } }}><Icon.eraser /> Limpar</button>}
           </div>
         </div>
+        <label className="check imp-auto">
+          <input type="checkbox" checked={autoCreate} onChange={(e) => { setAutoCreate(e.target.checked); try { localStorage.setItem('eb-imp-autocreate', e.target.checked ? '1' : '0'); } catch { /* ignore */ } }} />
+          <span>Ao salvar, <b>cadastrar automaticamente</b> em Pessoas os nomes que não existem (função pela coluna; turno Manhã se começa antes das 10h, senão Tarde). Nomes com uma palavra só ou parecidos com alguém do cadastro não são criados — escolha na lista.</span>
+        </label>
+        {created.length > 0 && (
+          <div className="alert alert-ok">
+            <b>{created.length} pessoa(s) cadastrada(s) automaticamente:</b> {created.map((c) => `${c.name} (${c.role === 'motorista' ? 'motorista' : 'cobrador'}, ${c.shiftName})`).join(' · ')}.
+            {' '}Confira em <Link to="/pessoas">Pessoas</Link> (telefone, turno e disponibilidade).
+          </div>
+        )}
         <datalist id="imp-drivers">{drivers.map((p) => <option key={p.id} value={p.name} />)}</datalist>
         <datalist id="imp-conductors">{conductors.map((p) => <option key={p.id} value={p.name} />)}</datalist>
         {rows.length === 0 ? <Empty>Sem linhas. Envie a foto e toque em "Ler tabela", cole do Excel ou adicione linha por linha.</Empty> : (
           <div className="table-wrap">
             <table className="table sheet-table imp-table">
-              <colgroup>{COLS.map((c) => <col key={c.key} style={{ width: c.w }} />)}<col /><col /><col style={{ width: 52 }} /></colgroup>
-              <thead><tr>{COLS.map((c) => <th key={c.key}>{c.label}</th>)}<th>Motorista</th><th>Cobrador</th><th /></tr></thead>
+              <colgroup>{COLS.map((c) => <col key={c.key} style={{ width: c.w }} />)}<col style={{ width: 64 }} /><col /><col /><col style={{ width: 52 }} /></colgroup>
+              <thead><tr>{COLS.map((c) => <th key={c.key}>{c.label}</th>)}<th title="Horas estimadas: de HORA até REND.">Horas</th><th>Motorista</th><th>Cobrador</th><th /></tr></thead>
               <tbody>{rows.map((r, i) => (
                 <tr key={i}>
                   {COLS.map((c) => (
@@ -299,6 +318,7 @@ function Editor({ id }: { id: number }) {
                         onChange={(e) => edit(i, { [c.key]: e.target.value } as Partial<ExtraRow>)} />
                     </td>
                   ))}
+                  <td className="muted nowrap">{serviceMinutes(r.start, r.end) ? fmtHours(serviceMinutes(r.start, r.end)) : '—'}</td>
                   <NameCell value={r.driverName} id={r.driverId} list="imp-drivers" nameOf={nameOf} disabled={!canEdit} onPaste={onPaste(i)}
                     onChange={(v) => edit(i, { driverName: v.toUpperCase(), driverId: null })} />
                   <NameCell value={r.conductorName} id={r.conductorId} list="imp-conductors" nameOf={nameOf} disabled={!canEdit} onPaste={onPaste(i)}

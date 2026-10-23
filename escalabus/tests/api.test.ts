@@ -390,6 +390,17 @@ describe('escalas importadas (foto/PDF/planilha)', () => {
     const saved = (await adm.put(`/api/extras/${s.id}`).set(H).send({ title: 'ESCALA DE ELEIÇÃO', date: '2026-10-25', notes: null, rows }).expect(200)).body;
     expect(saved.rows[0].driverId).not.toBeNull(); // "HENRRIQUE GRECCO" no cadastro
     expect(saved.rows[0].conductorId).toBeNull();
+    expect(saved.created).toEqual([]);
+    // cadastro automático dos nomes que não existem (2+ palavras, nada parecido no cadastro)
+    const auto = (await adm.put(`/api/extras/${s.id}`).set(H).send({ title: 'ESCALA DE ELEIÇÃO', date: '2026-10-25', notes: null, createMissing: true,
+      rows: [...rows, { ...rows[0], seq: '9', driverName: 'HENRIQUE GRECCO', conductorName: 'fulano  inexistente' }, { ...rows[0], seq: '10', driverName: 'BELTRANO NOVO', conductorName: 'ANA' }] }).expect(200)).body;
+    expect(auto.created.map((c: { name: string; role: string; shiftName: string }) => [c.name, c.role, c.shiftName]))
+      .toEqual([['FULANO INEXISTENTE', 'cobrador', 'Manhã'], ['BELTRANO NOVO', 'motorista', 'Manhã']]);
+    expect(auto.rows[0].conductorId).toBe(auto.rows[1].conductorId); // mesmo nome nas duas linhas = mesma pessoa
+    expect(auto.rows[2].conductorId).toBeNull(); // "ANA": uma palavra só, não cria
+    const cat = (await adm.get('/api/catalog')).body;
+    expect(cat.people.find((p: { name: string }) => p.name === 'FULANO INEXISTENTE')).toMatchObject({ role: 'cobrador', availStart: '05:00', availEnd: '18:00' });
+    await adm.put(`/api/extras/${s.id}`).set(H).send({ title: 'ESCALA DE ELEIÇÃO', date: '2026-10-25', notes: null, rows }).expect(200);
     // funcionário: rascunho não aparece
     const f = request.agent(app);
     await f.post('/api/func/register').set(H).send({ phone: '61988881111', name: 'Henrique Grecco', password: 'minha-senha' }).expect(201);
@@ -398,7 +409,8 @@ describe('escalas importadas (foto/PDF/planilha)', () => {
     await f.get(`/api/func/files/${withFile.files[0].id}`).expect(404);
     await adm.post(`/api/extras/${s.id}/status`).set(H).send({ status: 'publicada' }).expect(200);
     const list = (await f.get('/api/func/schedules').expect(200)).body;
-    expect(list[0]).toMatchObject({ kind: 'avulsa', title: 'ESCALA DE ELEIÇÃO', date: '2026-10-25', mine: 1 });
+    expect(list[0]).toMatchObject({ kind: 'avulsa', title: 'ESCALA DE ELEIÇÃO', date: '2026-10-25', mine: 1, minutes: 405 }); // 05:00–11:45
+    expect(list.find((x: { kind: string }) => x.kind === 'fds').minutes).toBeGreaterThan(0);
     const det = (await f.get(`/api/func/extras/${s.id}`).expect(200)).body;
     expect(det.rows).toHaveLength(1);
     const img = await f.get(`/api/func/files/${withFile.files[0].id}`).expect(200);
