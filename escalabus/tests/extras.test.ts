@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchPerson, normTime, parseTable } from '../shared/extras';
+import { emptyRow, matchPerson, myRole, normTime, parseTable } from '../shared/extras';
 import type { Person } from '../shared/types';
 
 const P = (id: number, name: string, role: Person['role']): Person => ({ id, name, role, shiftName: 'Manhã', availStart: '05:00', availEnd: '18:00', whatsapp: null, active: true });
@@ -25,5 +25,15 @@ describe('escalas importadas', () => {
     expect(matchPerson('YASMIM', people, 'cobrador')).toBeNull();
     expect(matchPerson('PAULO HENRIQUE', people, 'motorista')).toBe(4);
     expect(matchPerson('FULANO DE TAL', people, 'motorista')).toBeNull();
+  });
+});
+
+describe('meus serviços na escala importada', () => {
+  it('reconhece pelo vínculo ou pelo nome igual ao do cadastro quando a linha ficou sem vínculo', () => {
+    const r = { ...emptyRow(), driverName: 'FULANO', driverId: 9, conductorName: 'Édson  Texeira', conductorId: null };
+    expect(myRole(r, 9, 'X')).toBe('driver');
+    expect(myRole(r, 87, 'EDSON TEXEIRA')).toBe('conductor');
+    expect(myRole({ ...r, conductorId: 5 }, 87, 'EDSON TEXEIRA')).toBeNull(); // ligado a outra pessoa
+    expect(myRole(r, null, 'EDSON TEXEIRA')).toBeNull();
   });
 });
