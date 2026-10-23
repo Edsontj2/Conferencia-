@@ -127,3 +127,15 @@ export function matchPerson(name: string, people: Person[], role: Role): number 
 /** Linhas da escala em que a pessoa aparece. */
 export const rowsOf = (rows: ExtraRow[], personId: number | null) =>
   personId == null ? [] : rows.filter((r) => r.driverId === personId || r.conductorId === personId);
+
+const sameName = (a: string, b: string) => { const x = nameTokens(a).join(' '); return x !== '' && x === nameTokens(b).join(' '); };
+/**
+ * Papel da pessoa na linha: pelo vínculo com o cadastro ou, se a linha ficou sem vínculo,
+ * pelo nome escrito igual ao do cadastro (ignorando acentos e maiúsculas).
+ */
+export function myRole(r: ExtraRow, personId: number | null, personName: string | null): 'driver' | 'conductor' | null {
+  if (personId == null) return null;
+  if (r.driverId === personId || (r.driverId == null && personName && sameName(r.driverName, personName))) return 'driver';
+  if (r.conductorId === personId || (r.conductorId == null && personName && sameName(r.conductorName, personName))) return 'conductor';
+  return null;
+}

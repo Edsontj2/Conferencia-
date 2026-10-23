@@ -408,6 +408,11 @@ describe('escalas importadas (foto/PDF/planilha)', () => {
     await f.get(`/api/func/extras/${s.id}`).expect(404);
     await f.get(`/api/func/files/${withFile.files[0].id}`).expect(404);
     await adm.post(`/api/extras/${s.id}/status`).set(H).send({ status: 'publicada' }).expect(200);
+    // publicada sem linhas e sem arquivo não aparece para a equipe
+    const vazia = (await adm.post('/api/extras').set(H).send({ title: 'VAZIA', date: '2026-10-26' }).expect(201)).body;
+    await adm.post(`/api/extras/${vazia.id}/files`).set(H).send({ name: 'a.png', mime: 'image/png', data: png.toString('base64') }).expect(201);
+    const vz = (await adm.post(`/api/extras/${vazia.id}/status`).set(H).send({ status: 'publicada' }).expect(200)).body;
+    await adm.delete(`/api/extras/files/${vz.files[0].id}`).set(H).expect(200);
     const list = (await f.get('/api/func/schedules').expect(200)).body;
     expect(list[0]).toMatchObject({ kind: 'avulsa', title: 'ESCALA DE ELEIÇÃO', date: '2026-10-25', mine: 1, minutes: 405 }); // 05:00–11:45
     expect(list.find((x: { kind: string }) => x.kind === 'fds').minutes).toBeGreaterThan(0);

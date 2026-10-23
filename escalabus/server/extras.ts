@@ -4,7 +4,7 @@ import type { Database, Mode, Q } from './db.js';
 import { nowIso } from './db.js';
 import { HttpError } from './schedules.js';
 import * as repo from './repo.js';
-import { matchPerson, type ExtraFileMeta, type ExtraRow, type ExtraSchedule } from '../shared/extras.js';
+import { matchPerson, myRole, type ExtraFileMeta, type ExtraRow, type ExtraSchedule } from '../shared/extras.js';
 import { aiEnabled, aiReadable, readScheduleFile } from './ai-reader.js';
 import { shiftWindow } from './seed.js';
 import { findNameMatches, nameTokens } from '../shared/names.js';
@@ -183,16 +183,23 @@ export function registerExtraAdminRoutes(app: Express, db: Database, modeOf: (re
 
 /** Itens publicados para o app dos funcionários (dados reais). */
 export async function publishedExtras(q: Q, personId: number | null) {
-  const rows = await q<R>(`SELECT s.id, s.title, s.date,
-    (SELECT COUNT(*) FROM extra_rows r WHERE r.schedule_id = s.id AND (r.driver_id = ? OR r.conductor_id = ?)) AS mine
-    FROM extra_schedules s WHERE s.status = 'publicada' ORDER BY s.date DESC LIMIT 60`, [personId ?? -1, personId ?? -1]);
-  const mins = new Map<number, number>();
-  if (personId != null) {
-    const rs = await q<R>(`SELECT r.schedule_id, r.start_time, r.end_time FROM extra_rows r JOIN extra_schedules s ON s.id = r.schedule_id
-      WHERE s.status = 'publicada' AND (r.driver_id = ? OR r.conductor_id = ?)`, [personId, personId]);
-    for (const r of rs) mins.set(Number(r.schedule_id), (mins.get(Number(r.schedule_id)) ?? 0) + serviceMinutes(String(r.start_time), String(r.end_time)));
+  // escalas publicadas sem linhas e sem arquivo não aparecem para a equipe
+  const rows = await q<R>(`SELECT s.id, s.title, s.date FROM extra_schedules s WHERE s.status = 'publicada'
+    AND (EXISTS (SELECT 1 FROM extra_rows r WHERE r.schedule_id = s.id) OR EXISTS (SELECT 1 FROM extra_files f WHERE f.schedule_id = s.id))
+    ORDER BY s.date DESC LIMIT 60`);
+  const mine = new Map<number, { n: number; min: number }>();
+  if (personId != null && rows.length) {
+    const [p] = await q<{ name: string }>('SELECT name FROM people WHERE id = ?', [personId]);
+    const rs = await q<R>(`SELECT r.* FROM extra_rows r JOIN extra_schedules s ON s.id = r.schedule_id WHERE s.status = 'publicada'`);
+    for (const raw of rs) {
+      const r = rowOf(raw);
+      if (!myRole(r, personId, p?.name ?? null)) continue;
+      const k = Number(raw.schedule_id);
+      const cur = mine.get(k) ?? { n: 0, min: 0 };
+      cur.n++; cur.min += serviceMinutes(r.start, r.end); mine.set(k, cur);
+    }
   }
-  return rows.map((r) => ({ id: Number(r.id), title: String(r.title), date: String(r.date), mine: Number(r.mine), minutes: mins.get(Number(r.id)) ?? 0 }));
+  return rows.map((r) => ({ id: Number(r.id), title: String(r.title), date: String(r.date), mine: mine.get(Number(r.id))?.n ?? 0, minutes: mine.get(Number(r.id))?.min ?? 0 }));
 }
 
 export async function publishedExtra(q: Q, id: number) {

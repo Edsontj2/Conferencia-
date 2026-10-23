@@ -5,7 +5,7 @@ import { Icon } from '../components/Icons';
 import { Field, Modal } from '../components/ui';
 import { InstallButton } from '../components/InstallButton';
 import type { Entry } from '../../shared/types';
-import type { ExtraSchedule } from '../../shared/extras';
+import { myRole, type ExtraSchedule } from '../../shared/extras';
 import { buildReportDay } from '../../shared/report';
 import { crossesMidnight, dayLabel, fmtDate, fmtHours, serviceMinutes, todayLocal, weekdayOf, addDays } from '../../shared/time';
 import { formatPhone } from '../../shared/whatsapp';
@@ -240,7 +240,7 @@ function Viewer({ me, online, onLogout }: { me: Me; online: boolean; onLogout: (
           {err && <div className="alert alert-err">{err}</div>}
           {list && list.length === 0 && <div className="empty">Ainda não há escala publicada. Volte mais tarde.</div>}
 
-          {extra && <ExtraView s={extra} pid={pid} linked={!!me.person} />}
+          {extra && <ExtraView s={extra} pid={pid} personName={me.person?.name ?? null} linked={!!me.person} />}
           {detail && (
             <>
               <section className="fa-mine">
@@ -355,13 +355,14 @@ function PasswordDialog({ online, onClose }: { online: boolean; onClose: () => v
 
 
 /* ---------------- Escala importada (foto/PDF feita fora do sistema) ---------------- */
-function ExtraView({ s, pid, linked }: { s: ExtraSchedule; pid: number | null; linked: boolean }) {
+function ExtraView({ s, pid, personName, linked }: { s: ExtraSchedule; pid: number | null; personName: string | null; linked: boolean }) {
   const [q, setQ] = useState('');
   const [photo, setPhoto] = useState<number | null>(null);
-  const mine = pid == null ? [] : s.rows.filter((r) => r.driverId === pid || r.conductorId === pid);
+  const roleIn = (r: ExtraSchedule['rows'][number]) => myRole(r, pid, personName);
+  const mine = s.rows.filter((r) => roleIn(r));
   const term = q.trim().toLowerCase();
   const rows = s.rows.filter((r) => !term || r.driverName.toLowerCase().includes(term) || r.conductorName.toLowerCase().includes(term) || r.line.includes(term) || r.bus.includes(term));
-  const isMine = (r: ExtraSchedule['rows'][number]) => pid != null && (r.driverId === pid || r.conductorId === pid);
+  const isMine = (r: ExtraSchedule['rows'][number]) => roleIn(r) != null;
   return (
     <>
       {s.notes && <div className="alert alert-info">{s.notes}</div>}
@@ -369,12 +370,14 @@ function ExtraView({ s, pid, linked }: { s: ExtraSchedule; pid: number | null; l
         <h2>Meus serviços{mine.length > 0 && <span className="fa-total">Total estimado: <b>{fmtHours(mine.reduce((t, r) => t + serviceMinutes(r.start, r.end), 0))}</b></span>}</h2>
         {!linked ? (
           <p className="muted">Seu cadastro ainda não foi vinculado ao seu nome na equipe. Veja a escala completa abaixo; a administração vai fazer o vínculo.</p>
+        ) : s.rows.length === 0 ? (
+          <p className="muted">Esta escala tem só o arquivo original (as linhas não foram digitadas). Procure seu nome na foto abaixo.</p>
         ) : mine.length === 0 ? (
           <div className="fa-free"><Icon.check /> Seu nome <strong>não aparece</strong> nesta escala. Confira a tabela e o arquivo original abaixo.</div>
         ) : (
           <div className="fa-mine-list">
             {mine.map((r, i) => {
-              const isDriver = r.driverId === pid;
+              const isDriver = roleIn(r) === 'driver';
               return (
                 <div key={i} className="fa-mine-card">
                   <div className="fa-mine-day">{dayLabel(s.date)} <span>{fmtDate(s.date)}</span></div>
@@ -418,8 +421,8 @@ function ExtraView({ s, pid, linked }: { s: ExtraSchedule; pid: number | null; l
               <tbody>{rows.map((r, i) => (
                 <tr key={i} className={isMine(r) ? 'fa-row-mine' : ''}>
                   <td className="muted">{r.seq}</td><td>{r.bus}</td><td className="strong">{r.start}</td><td>{r.line}</td><td>{r.end}</td><td className="muted">{serviceMinutes(r.start, r.end) ? fmtHours(serviceMinutes(r.start, r.end)) : ''}</td>
-                  <td className={r.driverId != null && r.driverId === pid ? 'strong' : ''}>{r.driverName}</td>
-                  <td className={r.conductorId != null && r.conductorId === pid ? 'strong' : ''}>{r.conductorName}</td>
+                  <td className={roleIn(r) === 'driver' ? 'strong' : ''}>{r.driverName}</td>
+                  <td className={roleIn(r) === 'conductor' ? 'strong' : ''}>{r.conductorName}</td>
                 </tr>
               ))}</tbody>
             </table>
