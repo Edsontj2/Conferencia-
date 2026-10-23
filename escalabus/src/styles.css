@@ -319,7 +319,7 @@ textarea { width: 100%; }
 .ph { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
 .ph h1 { font-size: 1.85rem; font-weight: 800; letter-spacing: -.025em; color: #0f172a; }
 .ph p { margin: .25rem 0 0; color: #475569; font-size: 1rem; }
-.ph-right { display: flex; gap: .5rem; align-items: center; }
+.ph-right { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
 .date-card { display: flex; align-items: center; gap: .35rem; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: .45rem; box-shadow: var(--shadow); }
 .date-card-body { position: relative; display: flex; align-items: center; gap: .7rem; padding: .2rem .6rem; cursor: pointer; border-radius: 8px; }
 .date-card-body:hover { background: #f8fafc; }
@@ -440,7 +440,7 @@ details.alert summary::marker { color: currentColor; }
 .panel-title { font-size: 1rem; margin: 0 0 .8rem; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; width: 100%; }
 .imp-status { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin: -.4rem 0 1rem; }
-.imp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; margin-bottom: 1.1rem; }
+.imp-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.1rem; margin-bottom: 1.1rem; }
 .imp-drop { width: 100%; display: flex; flex-direction: column; align-items: center; gap: .25rem; padding: 1.2rem; border: 2px dashed #c7d2fe; border-radius: 14px; background: #f8faff; color: var(--primary); cursor: pointer; font: inherit; }
 .imp-drop span { color: var(--muted); font-size: .84rem; }
 .imp-drop:hover:not(:disabled) { background: #eef2ff; }
@@ -459,6 +459,19 @@ details.alert summary::marker { color: currentColor; }
 .imp-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: transparent; vertical-align: middle; }
 .imp-dot.ok { background: #16a34a; }
 .imp-dot.no { background: #f59e0b; }
-@media (max-width: 900px) { .imp-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .imp-grid { grid-template-columns: minmax(0, 1fr); } }
 .imp-auto { align-items: flex-start; margin: 0 0 .8rem; font-size: .85rem; color: var(--muted); }
 .imp-auto input { margin-top: .1rem; flex: none; }
+
+/* ===== Celular: nada pode ficar mais largo que a tela ===== */
+.main { overflow-x: clip; }
+input[type=date], input[type=time] { min-width: 0; width: 100%; -webkit-appearance: none; appearance: none; text-align: left; }
+input[type=date]::-webkit-date-and-time-value, input[type=time]::-webkit-date-and-time-value { text-align: left; }
+@media (max-width: 960px) {
+  .ph-right .btn { flex: 1 1 auto; justify-content: center; }
+  .imp-status { margin-top: 0; }
+}
+@media (max-width: 600px) {
+  .imp-file { flex-wrap: wrap; }
+  .imp-file-off { display: none; }
+}

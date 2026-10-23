@@ -272,7 +272,7 @@ function Editor({ id }: { id: number }) {
               {(f.mime.startsWith('image/') || f.mime === 'application/pdf') && (
                 aiOn
                   ? <button className="btn btn-sm btn-primary" disabled={!canEdit} onClick={() => void readAi(f.id)}><Icon.dice /> Ler tabela</button>
-                  : <span className="muted small" title="Configure ANTHROPIC_API_KEY no servidor para ler fotos automaticamente">Leitura automática desligada</span>
+                  : <span className="muted small imp-file-off" title="Configure ANTHROPIC_API_KEY no servidor para ler fotos automaticamente">Leitura automática desligada</span>
               )}
               <IconAction kind="danger" title="Remover arquivo" disabled={!canEdit} onClick={() => delFile(f.id)}><Icon.trash /></IconAction>
             </div>
